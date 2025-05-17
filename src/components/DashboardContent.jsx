@@ -331,7 +331,7 @@ const DashboardContent = ({
 
       {/* Jadwal and Search Row - Responsive grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-        {/* Jadwal Card - Full width on mobile, 3/4 on desktop */}
+        {/* Jadwal Card */}
         {role !== '0a' && role !== '0b' && (
           <section className="md:col-span-3 flex flex-col sm:flex-row rounded-lg overflow-hidden shadow-sm">
             <div className="bg-blue-900 text-white p-4 w-full sm:w-48 flex flex-col justify-center">
@@ -370,7 +370,7 @@ const DashboardContent = ({
           </section>
         )}
 
-        {/* Search Box - Full width on mobile, 1/4 on desktop */}
+        {/* Search Box */}
         <div className="flex flex-col w-full">
           <div className="relative mb-3">
             <input
@@ -387,7 +387,7 @@ const DashboardContent = ({
         </div>
       </div>
 
-      {/* Pengumuman Section - Show for all roles */}
+      {/* Pengumuman Section */}
       <section className="bg-orange-300 rounded-lg shadow-sm mb-4 p-4">
         <h3 className="font-bold text-sm mb-2">Pengumuman</h3>
 
@@ -418,7 +418,7 @@ const DashboardContent = ({
         )}
       </section>
 
-      {/* Presensi Terbaru Section - Hanya untuk role 3 dan 4 */}
+      {/* Presensi Terbaru Section */}
       {(role === '3' || role === '4') && (
         <section className="bg-white rounded-lg shadow-sm mb-4 p-4">
           <div className="flex justify-between items-center mb-4">
@@ -487,7 +487,7 @@ const DashboardContent = ({
         </div>
       </section>
 
-      {/* Quran Progress Section - Show for all roles */}
+      {/* Quran Progress Section */}
       <section className="bg-green-50 rounded-lg shadow-sm mb-6 p-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3">
           <div className="flex items-center mb-3 sm:mb-0">
@@ -531,6 +531,7 @@ const DashboardContent = ({
           Terakhir Dibaca: {quranProgress.lastRead || '-'}
         </p>
       </section>
+      
       {/* Bottom spacing for mobile navigation */}
       <div className="h-16 md:h-0"></div>
     </main>
