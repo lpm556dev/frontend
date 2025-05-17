@@ -36,6 +36,8 @@ export default function QrCodeScanner() {
   const [showPermissionForm, setShowPermissionForm] = useState(false);
   const [showKeteranganForm, setShowKeteranganForm] = useState(false);
   const [isOutsideValidHours, setIsOutsideValidHours] = useState(false);
+  const [scanCount, setScanCount] = useState(0);
+  const [autoAttendance, setAutoAttendance] = useState(false);
   
   // Scanner reference
   const scannerRef = useRef(null);
@@ -182,7 +184,7 @@ export default function QrCodeScanner() {
     return now.getDay() === 0;
   };
 
-  // Check if current time is within valid hours (Saturday 16:00-17:00 or Sunday before 16:00)
+  // Check if current time is within valid hours (Saturday 17:00-Sunday 16:00)
   const checkValidHours = () => {
     const now = new Date();
     const hours = now.getHours();
@@ -195,9 +197,9 @@ export default function QrCodeScanner() {
       return false;
     }
 
-    // Saturday - only allowed between 16:00-17:00
+    // Saturday - allowed from 17:00 onwards
     if (dayOfWeek === 6) {
-      if (hours === 16 || (hours === 17 && minutes === 0)) {
+      if (hours >= 17) {
         setIsOutsideValidHours(false);
         return true;
       } else {
@@ -213,6 +215,11 @@ export default function QrCodeScanner() {
         return true;
       } else {
         setIsOutsideValidHours(true);
+        // Check if we need to set auto attendance
+        if (hours >= 16 && scanCount === 0) {
+          setAutoAttendance(true);
+          setAttendanceStatus('hadir');
+        }
         return false;
       }
     }
@@ -422,6 +429,55 @@ export default function QrCodeScanner() {
     };
   }, []);
 
+  // Handle auto attendance on Sunday after 16:00 if not scanned
+  useEffect(() => {
+    if (autoAttendance) {
+      const submitAutoAttendance = async () => {
+        try {
+          const payload = {
+            qrcode_text: 'AUTO_ATTENDANCE',
+            status: 'hadir',
+            keterangan: 'auto'
+          };
+
+          const response = await fetch(`${API_URL}/users/presensi`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            setScanResult({
+              success: true,
+              message: "Presensi otomatis berhasil dicatat",
+            });
+            toast.success("Presensi otomatis berhasil dicatat");
+          } else {
+            setScanResult({
+              success: false,
+              message: data.message || 'Gagal mencatat presensi otomatis',
+            });
+            toast.error(data.message || `Gagal mencatat presensi otomatis`);
+          }
+        } catch (error) {
+          console.error('Error submitting auto attendance:', error);
+          setScanResult({
+            success: false,
+            message: `Error: ${error.message}`,
+          });
+          toast.error(`Error: ${error.message}`);
+        }
+      };
+
+      submitAutoAttendance();
+      setAutoAttendance(false);
+    }
+  }, [autoAttendance]);
+
   // ===== QR Scanner Functions =====
   
   // Handle successful QR scan
@@ -440,22 +496,25 @@ export default function QrCodeScanner() {
     const minutes = now.getMinutes();
     const dayOfWeek = now.getDay();
     
-    // Saturday between 16:00-17:00
-    if (isSaturday() && hours === 16) {
-      // First scan on Saturday = hadir
-      setAttendanceStatus('hadir');
-    } 
-    // Saturday between 16:00-17:00 but after first hour (17:00)
-    else if (isSaturday() && hours === 17 && minutes === 0) {
-      // Late scan on Saturday = terlambat
+    // Saturday from 17:00 onwards
+    if (isSaturday() && hours >= 17) {
+      // First scan on Saturday = ijin terlambat
       setShowLateForm(true);
       setAttendanceStatus('terlambat');
-    }
+      setScanCount(prev => prev + 1);
+    } 
     // Sunday before 16:00
     else if (isSunday() && (hours < 16 || (hours === 16 && minutes === 0))) {
-      // Scan on Sunday = ijin pulang
-      setShowPermissionForm(true);
-      setAttendanceStatus('ijin pulang');
+      // If already scanned on Saturday, this is second scan = ijin pulang
+      if (scanCount >= 1) {
+        setShowPermissionForm(true);
+        setAttendanceStatus('ijin pulang');
+      } else {
+        // First scan on Sunday = ijin terlambat
+        setShowLateForm(true);
+        setAttendanceStatus('terlambat');
+        setScanCount(prev => prev + 1);
+      }
     }
     // Default case (shouldn't happen if checks are correct)
     else {
@@ -479,7 +538,7 @@ export default function QrCodeScanner() {
   // Start QR scanner
   const startScanner = () => {
     if (isOutsideValidHours) {
-      toast.error("Fitur scan hanya tersedia pada Sabtu pukul 16.00-17.00 dan Ahad sebelum 16.00");
+      toast.error("Fitur scan hanya tersedia pada Sabtu pukul 17.00-24.00 dan Ahad sebelum 16.00");
       return;
     }
 
@@ -767,7 +826,7 @@ export default function QrCodeScanner() {
               <span className="font-medium">Fitur scan tidak tersedia</span>
             </div>
             <p className="text-sm text-red-500">
-              Fitur ini hanya tersedia pada Sabtu pukul 16.00-17.00 untuk absen masuk dan Ahad sebelum 16.00 untuk ijin pulang.
+              Fitur ini hanya tersedia pada Sabtu pukul 17.00-24.00 untuk ijin terlambat dan Ahad sebelum 16.00 untuk ijin pulang.
             </p>
           </div>
         )}
@@ -842,7 +901,7 @@ export default function QrCodeScanner() {
                   </div>
                   
                   {/* Keterangan Button (only during implementation hours) */}
-                  {(isSaturday() && currentTime >= "16:00:00" && currentTime < "17:00:00") || 
+                  {(isSaturday() && currentTime >= "17:00:00") || 
                    (isSunday() && currentTime < "16:00:00") ? (
                     <div className="mt-6">
                       <button
