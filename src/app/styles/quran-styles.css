@@ -1,0 +1,329 @@
+/* Quran Styling */
+
+
+/* Arabic text styles */
+
+.arab {
+    font-family: 'Scheherazade New', 'Amiri', 'Traditional Arabic', serif;
+    line-height: 2;
+    letter-spacing: 0.01em;
+    margin-bottom: 0.75rem;
+    text-align: right;
+}
+
+
+/* Font sizes for Arabic text */
+
+.arab.text-xl {
+    font-size: 1.5rem;
+}
+
+.arab.text-2xl {
+    font-size: 2rem;
+}
+
+.arab.text-3xl {
+    font-size: 2.5rem;
+}
+
+
+/* Translation text styling */
+
+.translation {
+    color: #4a5568;
+    line-height: 1.6;
+    margin-top: 0.75rem;
+    margin-bottom: 1rem;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+
+/* Font sizes for translation text */
+
+.translation.text-xs {
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.translation.text-sm {
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+.translation.text-base {
+    font-size: 1rem;
+    line-height: 1.7;
+}
+
+
+/* Ayat number styling */
+
+.ayat-number {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 2rem;
+    height: 2rem;
+    background-color: #f0f4f8;
+    color: #2d3748;
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 0.875rem;
+    margin-right: 0.75rem;
+    margin-top: 0.25rem;
+    flex-shrink: 0;
+    border: 1px solid #e2e8f0;
+}
+
+
+/* Ayat container */
+
+.ayat-item {
+    padding: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.ayat-item:last-child {
+    border-bottom: none;
+}
+
+.ayat-item:hover {
+    background-color: #f7fafc;
+}
+
+
+/* Tajwid highlighting */
+
+[class^="tajwid-"] {
+    transition: background-color 0.2s ease;
+    cursor: help;
+    position: relative;
+}
+
+[class^="tajwid-"]:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+
+/* Control panel styling */
+
+.control-panel {
+    background-color: #f0f7ff;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.control-panel h3 {
+    color: #1a365d;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+
+/* Font size selector styling */
+
+.font-size-selector {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    background-color: #fff;
+    border: 1px solid #e2e8f0;
+}
+
+.font-size-selector button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.font-size-selector button.active {
+    background-color: #3b82f6;
+    color: white;
+    font-weight: 500;
+}
+
+.font-size-selector button:hover:not(.active) {
+    background-color: #f0f4f8;
+}
+
+
+/* Toggle switch styling */
+
+.toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.toggle-label {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 24px;
+}
+
+.toggle-input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e0;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-input:checked+.toggle-slider {
+    background-color: #3b82f6;
+}
+
+.toggle-input:checked+.toggle-slider:before {
+    transform: translateX(16px);
+}
+
+
+/* Tajwid Guide styling */
+
+.tajwid-guide {
+    background-color: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.tajwid-category {
+    margin-bottom: 1rem;
+}
+
+.tajwid-category:last-child {
+    margin-bottom: 0;
+}
+
+.tajwid-category h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #4b5563;
+}
+
+
+/* Action buttons for each ayat */
+
+.ayat-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.ayat-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.ayat-action-btn svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+
+/* Responsive adjustments */
+
+@media (max-width: 640px) {
+    .arab.text-xl {
+        font-size: 1.25rem;
+    }
+    .arab.text-2xl {
+        font-size: 1.75rem;
+    }
+    .arab.text-3xl {
+        font-size: 2.25rem;
+    }
+    .ayat-item {
+        padding: 0.75rem;
+    }
+    .ayat-number {
+        width: 1.75rem;
+        height: 1.75rem;
+        font-size: 0.75rem;
+        margin-right: 0.5rem;
+    }
+}
+
+
+/* Arabic text styles */
+
+.arab {
+    font-family: 'Amiri Quran', 'Traditional Arabic', 'Scheherazade New', serif;
+    line-height: 2;
+    letter-spacing: 0;
+    margin-bottom: 0.75rem;
+    text-align: right;
+    font-weight: normal;
+    word-spacing: -2px;
+}
+
+
+/* Font sizes for Arabic text */
+
+.arab.text-xl {
+    font-size: 1.8rem;
+}
+
+.arab.text-2xl {
+    font-size: 2.2rem;
+}
+
+.arab.text-3xl {
+    font-size: 2.8rem;
+}
+
+
+/* Arabic font */
+
+@font-face {
+    font-family: 'Amiri Quran';
+    src: url('https://fonts.googleapis.com/css2?family=Amiri+Quran&display=swap');
+    font-display: swap;
+}
+
+.font-arabic {
+    font-family: 'Amiri Quran', serif;
+    line-height: 2.5;
+    text-align: right;
+    font-size: 1.8rem;
+    letter-spacing: 0;
+    word-spacing: -2px;
+}
