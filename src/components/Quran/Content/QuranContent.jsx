@@ -4,6 +4,7 @@ import TajwidGuide from './TajwidGuide';
 import ContentLoader from '../LoadingStates/ContentLoader';
 import EmptyState from '../LoadingStates/EmptyState';
 import NextContentButton from './NextContentButton';
+import PreviousContentButton from './PreviousContentButton';
 
 const QuranContent = ({
   loading,
@@ -17,6 +18,9 @@ const QuranContent = ({
   isAtEndOfContent,
   getNextContent,
   handleContinueToNext,
+  isAtStartOfContent,
+  getPreviousContent,
+  handleGoBackToPrevious,
   fontSizeClass,
   handleFontSizeChange,
   showTranslation,
@@ -44,8 +48,20 @@ const QuranContent = ({
     const showNextButton = isAtEndOfContent();
     const nextContent = showNextButton ? getNextContent() : null;
     
+    const showPreviousButton = isAtStartOfContent();
+    const previousContent = showPreviousButton ? getPreviousContent() : null;
+    
     return (
       <div className="bg-white rounded-lg shadow-md p-4">
+        {/* Previous Content Button */}
+        {showPreviousButton && previousContent && (
+          <PreviousContentButton
+            currentType={previousContent.type}
+            previousItem={previousContent.item}
+            onGoBack={handleGoBackToPrevious}
+          />
+        )}
+        
         {/* Surah header */}
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold mb-2">

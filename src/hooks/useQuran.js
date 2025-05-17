@@ -313,20 +313,38 @@ const useQuran = () => {
             return lastItem.no_ayat === surahDetails.jml_ayat;
         } else if (currentHal) {
             // For page view, check if this is the last ayat on the page
-            // This requires additional information about page boundaries from your API
-            // As a simplification, we'll check if another ayat from the same page exists
             return quranContent.filter(item =>
                 item.no_hal === lastItem.no_hal &&
                 item.no_ayat > lastItem.no_ayat
             ).length === 0;
         } else if (currentJuz) {
             // For juz view, check if this is the last ayat in the juz
-            // Similar to page view, requires information about juz boundaries
             return quranContent.filter(item =>
                 item.no_juz === lastItem.no_juz &&
                 (item.no_surat > lastItem.no_surat ||
                     (item.no_surat === lastItem.no_surat && item.no_ayat > lastItem.no_ayat))
             ).length === 0;
+        }
+
+        return false;
+    };
+
+    // Check if the current content is at the first item (surah, page or juz)
+    const isAtStartOfContent = () => {
+        if (!quranContent || quranContent.length === 0) return false;
+
+        // Get the first item in current content
+        const firstItem = quranContent[0];
+
+        if (selectedSurah && surahDetails) {
+            // For surah view, check if we're at the first ayat
+            return firstItem.no_ayat === 1;
+        } else if (currentHal) {
+            // For page view, check if this is the first page
+            return parseInt(currentHal) === 1;
+        } else if (currentJuz) {
+            // For juz view, check if this is the first juz
+            return parseInt(currentJuz) === 1;
         }
 
         return false;
@@ -377,6 +395,51 @@ const useQuran = () => {
         return null;
     };
 
+    // Determine the previous content to navigate to
+    const getPreviousContent = () => {
+        if (selectedSurah) {
+            // For surah view, get the previous surah
+            const currentSurahId = parseInt(selectedSurah);
+            const prevSurahId = currentSurahId - 1;
+
+            const prevSurah = surahList.find(s => s.no_surat === prevSurahId);
+            if (prevSurah) {
+                return {
+                    type: 'surah',
+                    item: {
+                        id: prevSurahId,
+                        name: prevSurah.nm_surat,
+                        number: prevSurahId
+                    }
+                };
+            }
+        } else if (currentHal) {
+            // For page view, get the previous page
+            const pageNum = parseInt(currentHal);
+            if (pageNum > 1) {
+                return {
+                    type: 'page',
+                    item: {
+                        number: pageNum - 1
+                    }
+                };
+            }
+        } else if (currentJuz) {
+            // For juz view, get the previous juz
+            const juzNum = parseInt(currentJuz);
+            if (juzNum > 1) {
+                return {
+                    type: 'juz',
+                    item: {
+                        number: juzNum - 1
+                    }
+                };
+            }
+        }
+
+        return null;
+    };
+
     // Handle navigation to next content (surah, page, juz)
     const handleContinueToNext = () => {
         const nextContent = getNextContent();
@@ -395,6 +458,30 @@ const useQuran = () => {
                 break;
             case 'juz':
                 fetchJuz(nextContent.item.number);
+                break;
+            default:
+                break;
+        }
+    };
+
+    // Handle navigation to previous content (surah, page, juz)
+    const handleGoBackToPrevious = () => {
+        const previousContent = getPreviousContent();
+        if (!previousContent) return;
+
+        // Navigate based on content type
+        switch (previousContent.type) {
+            case 'surah':
+                setSelectedSurah(previousContent.item.id.toString());
+                setSelectedAyat("");
+                fetchSurahDetails(previousContent.item.id);
+                fetchAyat(previousContent.item.id);
+                break;
+            case 'page':
+                fetchByPage(previousContent.item.number);
+                break;
+            case 'juz':
+                fetchJuz(previousContent.item.number);
                 break;
             default:
                 break;
@@ -434,10 +521,13 @@ const useQuran = () => {
         scrollToTop,
         setShowScrollTop,
 
-        // New continue functionality
+        // Continue functionality
         isAtEndOfContent,
         getNextContent,
-        handleContinueToNext
+        handleContinueToNext,
+        isAtStartOfContent,
+        getPreviousContent,
+        handleGoBackToPrevious
     };
 };
 
