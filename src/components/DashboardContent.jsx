@@ -1,4 +1,3 @@
-// DashboardContent.jsx - Updated for mobile parity
 import React, { useState, useEffect } from 'react';
 import useAuthStore from '../stores/authStore';
 
@@ -24,7 +23,6 @@ const DashboardContent = ({
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
   const [recentPresensi, setRecentPresensi] = useState([]);
   const [isLoadingPresensi, setIsLoadingPresensi] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   const checkBookmark = async () => {
     if (!user?.userId) return;
@@ -100,6 +98,7 @@ const DashboardContent = ({
     fetchRecentPresensi();
   }, [role, user?.userId]);
 
+  // Format date untuk lastRead dari updated_at
   const formatLastRead = (dateString) => {
     if (!dateString) return '-';
     const options = {
@@ -113,6 +112,7 @@ const DashboardContent = ({
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
 
+  // Format date for announcements
   const formatAnnouncementDate = (dateString) => {
     if (!dateString) return '-';
     const options = {
@@ -123,6 +123,7 @@ const DashboardContent = ({
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
 
+  // Format date for presensi
   const formatPresensiDate = (dateString) => {
     if (!dateString) return '-';
     const options = {
@@ -135,9 +136,10 @@ const DashboardContent = ({
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
 
+  // Gabungkan data bookmark dengan data default
   const quranProgress = {
-    ...userData.quranProgress,
-    ...(bookmarkData ? {
+    ...userData.quranProgress, // Data default dari props
+    ...(bookmarkData ? { // Override dengan data bookmark jika ada
       juz: bookmarkData.juz,
       surah: bookmarkData.surah,
       page: bookmarkData.page,
@@ -146,11 +148,13 @@ const DashboardContent = ({
     } : {})
   };
 
+  // Format date for display - showing current date
   const formatDate = () => {
     const options = { weekday: 'long', day: 'numeric', month: 'long' };
     return new Date().toLocaleDateString('id-ID', options);
   };
 
+  // All possible quick access items
   const allQuickAccessItems = [
     {
       id: 'rundown',
@@ -298,6 +302,7 @@ const DashboardContent = ({
     }
   ];
 
+  // Filter quick access items based on user role
   const getFilteredQuickAccessItems = () => {
     return allQuickAccessItems.filter(item => {
       if (item.roles.includes('all')) return true;
@@ -372,8 +377,6 @@ const DashboardContent = ({
               type="text"
               placeholder="Pencarian..."
               className="w-full bg-gray-100 rounded-lg px-4 py-2 pl-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
             />
             <button className="absolute right-3 top-1/2 transform -translate-y-1/2">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
