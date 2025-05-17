@@ -1,3 +1,4 @@
+// DashboardContent.jsx - Updated for mobile parity
 import React, { useState, useEffect } from 'react';
 import useAuthStore from '../stores/authStore';
 
@@ -23,6 +24,7 @@ const DashboardContent = ({
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
   const [recentPresensi, setRecentPresensi] = useState([]);
   const [isLoadingPresensi, setIsLoadingPresensi] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const checkBookmark = async () => {
     if (!user?.userId) return;
@@ -236,7 +238,7 @@ const DashboardContent = ({
         </svg>
       ),
       onClick: null,
-      roles: ['1a', '1b', '2c', '3', '4'] // Removed '0a' and '0b'
+      roles: ['1a' , '1b', '2c', '3', '4']
     },
     {
       id: 'my',
@@ -322,8 +324,9 @@ const DashboardContent = ({
         </div>
       </section>
 
-      {/* Jadwal and Search Row */}
+      {/* Jadwal and Search Row - Responsive grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+        {/* Jadwal Card */}
         {role !== '0a' && role !== '0b' && (
           <section className="md:col-span-3 flex flex-col sm:flex-row rounded-lg overflow-hidden shadow-sm">
             <div className="bg-blue-900 text-white p-4 w-full sm:w-48 flex flex-col justify-center">
@@ -362,12 +365,15 @@ const DashboardContent = ({
           </section>
         )}
 
+        {/* Search Box */}
         <div className="flex flex-col w-full">
           <div className="relative mb-3">
             <input
               type="text"
               placeholder="Pencarian..."
               className="w-full bg-gray-100 rounded-lg px-4 py-2 pl-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
             <button className="absolute right-3 top-1/2 transform -translate-y-1/2">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -458,7 +464,7 @@ const DashboardContent = ({
         </section>
       )}
 
-      {/* Quick Access */}
+      {/* Quick Access - Responsive grid */}
       <section className="bg-white rounded-lg shadow-sm mb-4 p-4">
         <h3 className="font-medium text-sm mb-4">Akses Cepat</h3>
         <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-4">
@@ -523,6 +529,7 @@ const DashboardContent = ({
         </p>
       </section>
       
+      {/* Bottom spacing for mobile navigation */}
       <div className="h-16 md:h-0"></div>
     </main>
   );
