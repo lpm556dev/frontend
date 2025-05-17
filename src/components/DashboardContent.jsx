@@ -98,7 +98,6 @@ const DashboardContent = ({
     fetchRecentPresensi();
   }, [role, user?.userId]);
 
-  // Format date untuk lastRead dari updated_at
   const formatLastRead = (dateString) => {
     if (!dateString) return '-';
     const options = {
@@ -112,7 +111,6 @@ const DashboardContent = ({
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
 
-  // Format date for announcements
   const formatAnnouncementDate = (dateString) => {
     if (!dateString) return '-';
     const options = {
@@ -123,7 +121,6 @@ const DashboardContent = ({
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
 
-  // Format date for presensi
   const formatPresensiDate = (dateString) => {
     if (!dateString) return '-';
     const options = {
@@ -136,10 +133,9 @@ const DashboardContent = ({
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
 
-  // Gabungkan data bookmark dengan data default
   const quranProgress = {
-    ...userData.quranProgress, // Data default dari props
-    ...(bookmarkData ? { // Override dengan data bookmark jika ada
+    ...userData.quranProgress,
+    ...(bookmarkData ? {
       juz: bookmarkData.juz,
       surah: bookmarkData.surah,
       page: bookmarkData.page,
@@ -148,13 +144,11 @@ const DashboardContent = ({
     } : {})
   };
 
-  // Format date for display - showing current date
   const formatDate = () => {
     const options = { weekday: 'long', day: 'numeric', month: 'long' };
     return new Date().toLocaleDateString('id-ID', options);
   };
 
-  // All possible quick access items
   const allQuickAccessItems = [
     {
       id: 'rundown',
@@ -242,7 +236,7 @@ const DashboardContent = ({
         </svg>
       ),
       onClick: null,
-      roles: ['1a', '1b', '2c', '3', '4']
+      roles: ['1a', '1b', '2c', '3', '4'] // Removed '0a' and '0b'
     },
     {
       id: 'my',
@@ -302,7 +296,6 @@ const DashboardContent = ({
     }
   ];
 
-  // Filter quick access items based on user role
   const getFilteredQuickAccessItems = () => {
     return allQuickAccessItems.filter(item => {
       if (item.roles.includes('all')) return true;
@@ -329,9 +322,8 @@ const DashboardContent = ({
         </div>
       </section>
 
-      {/* Jadwal and Search Row - Responsive grid */}
+      {/* Jadwal and Search Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-        {/* Jadwal Card */}
         {role !== '0a' && role !== '0b' && (
           <section className="md:col-span-3 flex flex-col sm:flex-row rounded-lg overflow-hidden shadow-sm">
             <div className="bg-blue-900 text-white p-4 w-full sm:w-48 flex flex-col justify-center">
@@ -370,7 +362,6 @@ const DashboardContent = ({
           </section>
         )}
 
-        {/* Search Box */}
         <div className="flex flex-col w-full">
           <div className="relative mb-3">
             <input
@@ -467,7 +458,7 @@ const DashboardContent = ({
         </section>
       )}
 
-      {/* Quick Access - Responsive grid */}
+      {/* Quick Access */}
       <section className="bg-white rounded-lg shadow-sm mb-4 p-4">
         <h3 className="font-medium text-sm mb-4">Akses Cepat</h3>
         <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-4">
@@ -532,7 +523,6 @@ const DashboardContent = ({
         </p>
       </section>
       
-      {/* Bottom spacing for mobile navigation */}
       <div className="h-16 md:h-0"></div>
     </main>
   );
