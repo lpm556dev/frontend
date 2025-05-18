@@ -503,7 +503,7 @@ export default function QrCodeScanner() {
           const now = new Date();
           const payload = {
             qrcode_text: 'AUTO_ATTENDANCE',
-            jenis: 'keluar',
+            jenis: 'keluar', // Default to 'keluar' for auto attendance
             keterangan: 'presensi otomatis',
             status: 'hadir',
             waktu_presensi: now.toISOString()
@@ -583,7 +583,7 @@ export default function QrCodeScanner() {
     } else if (todayScanCount === 2) {
       // Second scan - show permission form
       setShowPermissionForm(true);
-      setAttendanceStatus('hadir');
+      setAttendanceStatus('ijin pulang');
       setAttendanceType('keluar');
     } else {
       // More than 2 scans - show success but don't submit
@@ -787,15 +787,15 @@ export default function QrCodeScanner() {
       const now = new Date();
       let keteranganText = '';
       let jenis = attendanceType;
-      let status = attendanceStatus;
 
       // Determine jenis and keterangan based on different conditions
       if (keterangan === 'izin' || keterangan === 'sakit') {
         jenis = 'izin';
-        status = 'izin';
         keteranganText = `izin karena ${keterangan}`;
       } else if (attendanceStatus === 'terlambat') {
         keteranganText = `terlambat: ${lateReason}`;
+      } else if (attendanceStatus === 'ijin pulang') {
+        keteranganText = `ijin pulang: ${permissionReason}`;
       } else if (attendanceType === 'masuk') {
         keteranganText = 'hadir tepat waktu';
       } else {
@@ -806,7 +806,7 @@ export default function QrCodeScanner() {
         qrcode_text: qrcodeText,
         jenis: jenis,
         keterangan: keteranganText,
-        status: status,
+        status: attendanceStatus,
         waktu_presensi: now.toISOString()
       };
 
@@ -824,7 +824,7 @@ export default function QrCodeScanner() {
         setScanResult({
           success: true,
           message: data.message,
-          status: status,
+          status: attendanceStatus,
           lateReason: lateReason,
           permissionReason: permissionReason
         });
@@ -873,15 +873,6 @@ export default function QrCodeScanner() {
   const handlePermissionSubmit = () => {
     if (!permissionReason) {
       toast.error('Harap masukkan alasan ijin');
-      return;
-    }
-    submitAttendance(scannedCode);
-  };
-
-  // Handle late submission
-  const handleLateSubmit = () => {
-    if (!lateReason) {
-      toast.error('Harap masukkan alasan keterlambatan');
       return;
     }
     submitAttendance(scannedCode);
@@ -984,7 +975,6 @@ export default function QrCodeScanner() {
             </button>
           </div>
         </div>
-
         {/* Scanned Code Display (Processing) */}
         {scannedCode && !scanResult && !showLateForm && !showPermissionForm && !showKeteranganForm && (
           <div className="p-6">
