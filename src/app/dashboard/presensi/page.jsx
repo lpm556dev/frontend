@@ -17,55 +17,8 @@ const Presensi = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const [actualAttendance, setActualAttendance] = useState([
-    // Sample data for masuk (check-in)
-    {
-      "qrcode_text": "B51004",
-      "jenis": "masuk",
-      "keterangan": "hadir tepat waktu",
-      "status": "hadir",
-      "waktu_presensi": "2023-11-15T07:55:00Z"
-    },
-    // Sample data for keluar (check-out)
-    {
-      "qrcode_text": "B51004",
-      "jenis": "keluar",
-      "keterangan": "pulang setelah kegiatan",
-      "status": "hadir",
-      "waktu_presensi": "2023-11-15T16:30:00Z"
-    },
-    // Sample data for izin (permission)
-    {
-      "qrcode_text": "A52001",
-      "jenis": "izin",
-      "keterangan": "izin karena sakit",
-      "status": "izin",
-      "waktu_presensi": "2023-11-16T00:00:00Z"
-    },
-    // Additional sample data for variety
-    {
-      "qrcode_text": "B51004",
-      "jenis": "masuk",
-      "keterangan": "hadir tepat waktu",
-      "status": "hadir",
-      "waktu_presensi": "2023-11-22T07:50:00Z"
-    },
-    {
-      "qrcode_text": "B51004",
-      "jenis": "keluar",
-      "keterangan": "pulang setelah kegiatan",
-      "status": "hadir",
-      "waktu_presensi": "2023-11-22T16:35:00Z"
-    },
-    {
-      "qrcode_text": "B51004",
-      "jenis": "masuk",
-      "keterangan": "terlambat 15 menit",
-      "status": "telat",
-      "waktu_presensi": "2023-11-29T08:10:00Z"
-    }
-  ]);
-  const [isLoading, setIsLoading] = useState(false); // Changed to false since we're using sample data
+  const [actualAttendance, setActualAttendance] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuthStore();
   const [attendanceSummary, setAttendanceSummary] = useState({
     hadir: 0,
@@ -84,6 +37,32 @@ const Presensi = () => {
     window.addEventListener('resize', checkIfMobile);
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
+
+  // Fetch user attendance data
+  useEffect(() => {
+    const fetchUserAttendance = async () => {
+      try {
+        setIsLoading(true);
+        if (!user?.id) return;
+        
+        const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.id}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setActualAttendance(data.data);
+          calculateAttendanceSummary(data.data);
+        } else {
+          console.error('Failed to fetch attendance data:', data.message);
+        }
+      } catch (error) {
+        console.error('Error fetching attendance data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserAttendance();
+  }, [user?.id]);
 
   // Get weekend dates (Saturday and Sunday)
   const getWeekendDates = () => {
@@ -137,7 +116,6 @@ const Presensi = () => {
   // Set nearest Saturday as default when component loads
   useEffect(() => {
     setDate(weekendDates.saturday.formatted);
-    calculateAttendanceSummary(actualAttendance); // Calculate summary with sample data
   }, []);
 
   // Calculate attendance summary from API data
