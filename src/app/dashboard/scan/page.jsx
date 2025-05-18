@@ -436,7 +436,8 @@ export default function QrCodeScanner() {
         try {
           const payload = {
             qrcode_text: 'AUTO_ATTENDANCE',
-            keterangan: 'izin'
+            status: 'hadir',
+            keterangan: 'auto'
           };
 
           const response = await fetch(`${API_URL}/users/presensi`, {
@@ -712,6 +713,7 @@ export default function QrCodeScanner() {
     try {
       const payload = {
         qrcode_text: qrcodeText,
+        status: attendanceStatus,
         keterangan: keterangan,
         ...(lateReason && { late_reason: lateReason }),
         ...(permissionReason && { permission_reason: permissionReason })
@@ -933,7 +935,7 @@ export default function QrCodeScanner() {
               
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <button
-                  onClick={() => setKeterangan('Izin')}
+                  onClick={() => setKeterangan('izin')}
                   className={`py-3 rounded-lg border ${keterangan === 'izin' ? 
                     'bg-blue-100 border-blue-500 text-blue-700' : 
                     'bg-gray-50 border-gray-300 text-gray-700'}`}
