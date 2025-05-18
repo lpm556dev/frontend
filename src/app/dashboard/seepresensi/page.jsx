@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '../../../components/DashboardLayout';
-import useAuthStore from '../../../stores/authStore';
+import DashboardLayout from '@/components/DashboardLayout';
+import useAuthStore from '@/stores/authStore';
 
 const LihatPresensiPage = () => {
   const router = useRouter();
