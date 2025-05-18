@@ -234,17 +234,16 @@ export default function QrCodeScanner() {
     return now.toISOString().split('T')[0];
   };
 
-  // Check if user has already scanned today
-  const hasScannedToday = () => {
+  // Check if user has already scanned this QR code today
+  const hasScannedThisCodeToday = (qrcode) => {
     const today = getTodayDateString();
-    return todayScans.some(scan => scan.date === today);
+    return todayScans.some(scan => scan.date === today && scan.qrcode === qrcode);
   };
 
-  // Check if user has completed both scans today
-  const hasCompletedTodayScans = () => {
+  // Check scan count for a specific QR code today
+  const getScanCountForCode = (qrcode) => {
     const today = getTodayDateString();
-    const todayScanCount = todayScans.filter(scan => scan.date === today).length;
-    return todayScanCount >= 2;
+    return todayScans.filter(scan => scan.date === today && scan.qrcode === qrcode).length;
   };
 
   // ===== Effects =====
@@ -558,6 +557,14 @@ export default function QrCodeScanner() {
       return;
     }
 
+    // Check if this QR code has already been scanned twice today
+    const scanCountForThisCode = getScanCountForCode(decodedText);
+    if (scanCountForThisCode >= 2) {
+      toast.error("QR code ini sudah discan 2 kali hari ini");
+      stopScanner();
+      return;
+    }
+
     setScannedCode(decodedText);
     stopScanner();
     
@@ -568,30 +575,24 @@ export default function QrCodeScanner() {
     const newScan = {
       date: today,
       timestamp: now.getTime(),
-      type: attendanceType
+      type: attendanceType,
+      qrcode: decodedText
     };
     
     setTodayScans(prev => [...prev, newScan]);
     
-    // Check if this is the first or second scan today
-    const todayScanCount = todayScans.filter(scan => scan.date === today).length + 1;
+    // Check if this is the first or second scan for this QR code today
+    const scanCountForCode = todayScans.filter(scan => scan.date === today && scan.qrcode === decodedText).length + 1;
     
-    if (todayScanCount === 1) {
-      // First scan - set status to hadir
+    if (scanCountForCode === 1) {
+      // First scan for this QR code - set status to hadir
       setAttendanceStatus('hadir');
       setAttendanceType('masuk');
-    } else if (todayScanCount === 100) {
-      // Second scan - show permission form
+    } else if (scanCountForCode === 2) {
+      // Second scan for this QR code - show permission form
       setShowPermissionForm(true);
       setAttendanceStatus('ijin pulang');
       setAttendanceType('keluar');
-    } else {
-      // More than 2 scans - show success but don't submit
-      setScanResult({
-        success: true,
-        message: "Anda sudah melakukan scan 2 kali hari ini",
-      });
-      return;
     }
   };
 
@@ -873,6 +874,15 @@ export default function QrCodeScanner() {
   const handlePermissionSubmit = () => {
     if (!permissionReason) {
       toast.error('Harap masukkan alasan ijin');
+      return;
+    }
+    submitAttendance(scannedCode);
+  };
+
+  // Handle late submission
+  const handleLateSubmit = () => {
+    if (!lateReason) {
+      toast.error('Harap masukkan alasan keterlambatan');
       return;
     }
     submitAttendance(scannedCode);
