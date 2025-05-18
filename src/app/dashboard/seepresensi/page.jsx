@@ -76,12 +76,7 @@ const SeePresensiPage = () => {
       }
     } catch (error) {
       console.error('Error fetching presence data:', error);
-      MySwal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: error.message || 'Failed to load presence data',
-        footer: 'Please check your internet connection or contact administrator'
-      });
+    
     } finally {
       setLoading(false);
     }
