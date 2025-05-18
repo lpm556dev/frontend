@@ -38,22 +38,58 @@ const Presensi = () => {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
-  // Set nearest Saturday as default when component loads
-  useEffect(() => {
+  // Get weekend dates (Saturday and Sunday)
+  const getWeekendDates = () => {
     const today = new Date();
     const currentDay = today.getDay();
-    let nextSaturday = new Date(today);
+    
+    // Calculate next Saturday
+    let saturday = new Date(today);
     if (currentDay !== 6) {
       const daysUntilSaturday = currentDay === 0 ? 6 : (6 - currentDay);
-      nextSaturday.setDate(today.getDate() + daysUntilSaturday);
+      saturday.setDate(today.getDate() + daysUntilSaturday);
     }
     
-    const yyyy = nextSaturday.getFullYear();
-    const mm = String(nextSaturday.getMonth() + 1).padStart(2, '0');
-    const dd = String(nextSaturday.getDate()).padStart(2, '0');
-    const formattedSaturday = `${yyyy}-${mm}-${dd}`;
+    // Calculate next Sunday
+    let sunday = new Date(saturday);
+    sunday.setDate(saturday.getDate() + 1);
     
-    setDate(formattedSaturday);
+    // Format dates
+    const formatDate = (date) => {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+    
+    const formatDisplayDate = (date) => {
+      return date.toLocaleDateString('id-ID', { 
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric'
+      });
+    };
+    
+    return {
+      saturday: {
+        formatted: formatDate(saturday),
+        display: formatDisplayDate(saturday)
+      },
+      sunday: {
+        formatted: formatDate(sunday),
+        display: formatDisplayDate(sunday)
+      }
+    };
+  };
+
+  const weekendDates = getWeekendDates();
+  const saturdayFormatted = weekendDates.saturday.display;
+  const sundayFormatted = weekendDates.sunday.display;
+
+  // Set nearest Saturday as default when component loads
+  useEffect(() => {
+    setDate(weekendDates.saturday.formatted);
   }, []);
 
   // Fetch actual attendance data from API
@@ -179,8 +215,101 @@ const Presensi = () => {
   
   const groupedAttendance = groupAttendanceByDate();
 
-  // Rest of your component code remains the same...
-  // [Keep all the existing JSX and other functions]
+  // Handle date selection
+  const handleDateSelection = (date, displayDate) => {
+    setSelectedDate(displayDate);
+    setDate(date);
+    setShowStatusMenu(true);
+    setShowNotesForm(false);
+    setStatus('');
+    setNotes('');
+    setEditingRecord(null);
+  };
+
+  // Handle status click
+  const handleStatusClick = (selectedStatus) => {
+    setStatus(selectedStatus);
+    setShowNotesForm(selectedStatus !== 'Hadir');
+    if (selectedStatus === 'Hadir') {
+      setNotes('');
+    }
+  };
+
+  // Handle form submit
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (!status) {
+      setError('Silakan pilih status kehadiran');
+      return;
+    }
+    
+    if ((status === 'Izin' || status === 'Sakit' || status === 'Telat') && !notes) {
+      setError('Silakan isi keterangan');
+      return;
+    }
+    
+    setError('');
+    
+    if (editingRecord) {
+      // Update existing record
+      const updatedRecords = attendanceRecords.map(record =>
+        record.id === editingRecord.id ? { ...record, status, notes } : record
+      );
+      setAttendanceRecords(updatedRecords);
+      setSuccessMessage('Rencana kehadiran berhasil diperbarui');
+    } else {
+      // Add new record
+      const newRecord = {
+        id: Date.now(),
+        date: selectedDate,
+        status,
+        notes
+      };
+      setAttendanceRecords([...attendanceRecords, newRecord]);
+      setSuccessMessage('Rencana kehadiran berhasil ditambahkan');
+    }
+    
+    resetForm();
+  };
+
+  // Handle edit
+  const handleEdit = (record) => {
+    setEditingRecord(record);
+    setStatus(record.status);
+    setNotes(record.notes);
+    setShowStatusMenu(true);
+    setShowNotesForm(record.status !== 'Hadir');
+    setSelectedDate(record.date);
+    
+    // Scroll to status menu
+    setTimeout(() => {
+      const element = document.getElementById('status-menu');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
+  // Handle delete
+  const handleDelete = (id) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus rencana kehadiran ini?')) {
+      setAttendanceRecords(attendanceRecords.filter(record => record.id !== id));
+      setSuccessMessage('Rencana kehadiran berhasil dihapus');
+    }
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setStatus('');
+    setNotes('');
+    setShowNotesForm(false);
+    setShowStatusMenu(false);
+    setEditingRecord(null);
+    setSelectedDate('');
+    setError('');
+    setTimeout(() => setSuccessMessage(''), 3000);
+  };
 
   return (
     <div className={`mx-auto bg-white rounded-lg shadow-sm ${isMobile ? 'p-3' : 'p-6'}`}>
