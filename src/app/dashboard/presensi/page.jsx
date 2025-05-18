@@ -17,14 +17,61 @@ const Presensi = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const [actualAttendance, setActualAttendance] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [actualAttendance, setActualAttendance] = useState([
+    // Sample data for masuk (check-in)
+    {
+      "qrcode_text": "B51004",
+      "jenis": "masuk",
+      "keterangan": "hadir tepat waktu",
+      "status": "hadir",
+      "waktu_presensi": "2023-11-15T07:55:00Z"
+    },
+    // Sample data for keluar (check-out)
+    {
+      "qrcode_text": "B51004",
+      "jenis": "keluar",
+      "keterangan": "pulang setelah kegiatan",
+      "status": "hadir",
+      "waktu_presensi": "2023-11-15T16:30:00Z"
+    },
+    // Sample data for izin (permission)
+    {
+      "qrcode_text": "A52001",
+      "jenis": "izin",
+      "keterangan": "izin karena sakit",
+      "status": "izin",
+      "waktu_presensi": "2023-11-16T00:00:00Z"
+    },
+    // Additional sample data for variety
+    {
+      "qrcode_text": "B51004",
+      "jenis": "masuk",
+      "keterangan": "hadir tepat waktu",
+      "status": "hadir",
+      "waktu_presensi": "2023-11-22T07:50:00Z"
+    },
+    {
+      "qrcode_text": "B51004",
+      "jenis": "keluar",
+      "keterangan": "pulang setelah kegiatan",
+      "status": "hadir",
+      "waktu_presensi": "2023-11-22T16:35:00Z"
+    },
+    {
+      "qrcode_text": "B51004",
+      "jenis": "masuk",
+      "keterangan": "terlambat 15 menit",
+      "status": "telat",
+      "waktu_presensi": "2023-11-29T08:10:00Z"
+    }
+  ]);
+  const [isLoading, setIsLoading] = useState(false); // Changed to false since we're using sample data
   const { user } = useAuthStore();
   const [attendanceSummary, setAttendanceSummary] = useState({
     hadir: 0,
     izin: 0,
     sakit: 0,
-    total: 0
+    total: 16
   });
 
   // Check if it's mobile view
@@ -90,44 +137,8 @@ const Presensi = () => {
   // Set nearest Saturday as default when component loads
   useEffect(() => {
     setDate(weekendDates.saturday.formatted);
+    calculateAttendanceSummary(actualAttendance); // Calculate summary with sample data
   }, []);
-
-  // Fetch actual attendance data from API
-  useEffect(() => {
-    if (!user || !user.userId) {
-      console.log('No user found in store');
-      return;
-    }
-    
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        // Fetch user's attendance data
-        const response = await fetch(`${API_URL}/users/get-presensi?user_id=${user.userId}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch attendance data');
-        }
-        
-        const data = await response.json();
-        
-        if (data.success && Array.isArray(data.data)) {
-          setActualAttendance(data.data);
-          calculateAttendanceSummary(data.data);
-        } else {
-          console.error('Invalid data format:', data);
-          setError('Format data presensi tidak valid');
-        }
-      } catch (error) {
-        console.error('Error fetching attendance data:', error);
-        setError('Gagal memuat data presensi');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, [user]);
 
   // Calculate attendance summary from API data
   const calculateAttendanceSummary = (attendanceData) => {
@@ -135,7 +146,7 @@ const Presensi = () => {
       hadir: 0,
       izin: 0,
       sakit: 0,
-      total: 16 // Assuming 16 sessions in total (adjust as needed)
+      total: 16
     };
 
     // Group by date to count unique attendance days
@@ -152,6 +163,9 @@ const Presensi = () => {
         summary.izin++;
       } else if (record.status === 'sakit') {
         summary.sakit++;
+      } else if (record.status === 'telat') {
+        // Count as present but late
+        attendanceDays.add(date);
       }
     });
 
@@ -379,8 +393,13 @@ const Presensi = () => {
                     status = 'Hadir';
                     statusClass = 'bg-green-100 text-green-800';
                   } else if (item.masuk) {
-                    status = 'Hadir (belum keluar)';
-                    statusClass = 'bg-yellow-100 text-yellow-800';
+                    if (item.masuk.status === 'telat') {
+                      status = 'Hadir (terlambat)';
+                      statusClass = 'bg-orange-100 text-orange-800';
+                    } else {
+                      status = 'Hadir (belum keluar)';
+                      statusClass = 'bg-yellow-100 text-yellow-800';
+                    }
                   } else if (item.keterangan && item.keterangan.includes('izin')) {
                     status = 'Izin';
                     statusClass = 'bg-blue-100 text-blue-800';
@@ -395,7 +414,9 @@ const Presensi = () => {
                       <td className="py-3 px-4">{item.date}</td>
                       <td className="py-3 px-4">
                         {item.masuk ? (
-                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
+                          <span className={`px-2 py-1 rounded text-sm ${
+                            item.masuk.status === 'telat' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'
+                          }`}>
                             {formatAttendanceTime(item.masuk.waktu_presensi)}
                           </span>
                         ) : '-'}
