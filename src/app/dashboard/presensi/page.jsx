@@ -421,11 +421,11 @@ const Presensi = () => {
         </div>
 
         {/* Data Table */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-          {isLoading ? (
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          {loading ? (
             <div className="flex justify-center items-center p-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-3">Memuat data presensi...</span>
+              <span className="ml-3">Loading presence data...</span>
             </div>
           ) : filteredData.length > 0 ? (
             <div className="overflow-x-auto">
@@ -439,16 +439,16 @@ const Presensi = () => {
                       QR Code
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Jenis
+                      Type
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Keterangan
+                      Note
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Waktu
+                      Time
                     </th>
                   </tr>
                 </thead>
@@ -495,11 +495,11 @@ const Presensi = () => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Tidak ada data presensi ditemukan</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No presence data found</h3>
               <p className="mt-1 text-sm text-gray-500">
                 {searchQuery || filter !== 'all' || dateFilter 
-                  ? "Coba sesuaikan filter pencarian Anda" 
-                  : "Belum ada data presensi yang tercatat"}
+                  ? "Try adjusting your search filters" 
+                  : "No presence data has been recorded yet"}
               </p>
             </div>
           )}
