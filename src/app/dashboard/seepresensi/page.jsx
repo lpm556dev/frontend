@@ -87,6 +87,21 @@ const SeePresensiPage = () => {
     }
   };
 
+  useEffect(() => {
+    if (!token) {
+      MySwal.fire({
+        icon: 'warning',
+        title: 'Authentication Required',
+        text: 'Please login first',
+      }).then(() => {
+        router.push('/login');
+      });
+      return;
+    }
+    
+    fetchPresensiData();
+  }, [role, user?.userId, token]);
+
   // Filter data based on selected filters
   const filteredData = presensiData.filter(item => {
     // Filter by type (masuk/keluar/izin)
