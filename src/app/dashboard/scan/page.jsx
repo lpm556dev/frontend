@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -855,8 +856,9 @@ export default function QrCodeScanner() {
       </div>
 
       {/* QR Scanner Section */}
-      {isSundayAfter1600() ? (
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6 p-6">
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+        {/* Warning for invalid days/hours */}
+        {isOutsideValidHours && (
           <div className="p-6 text-center bg-red-50 border-b border-red-100">
             <div className="flex items-center justify-center text-red-600 mb-3">
               <AlertCircle size={24} className="mr-2" />
@@ -866,91 +868,67 @@ export default function QrCodeScanner() {
               Fitur ini hanya tersedia pada Sabtu pukul 16.00 hingga Ahad pukul 16.00.
             </p>
           </div>
+        )}
 
+        {/* Initial Button State */}
+        {!scanning && !scannedCode && !scanResult && (
           <div className="p-6 text-center">
             <button
-              disabled
-              className="bg-gradient-to-r from-blue-600 to-blue-800 text-white px-6 py-4 rounded-lg opacity-50 cursor-not-allowed flex items-center mx-auto"
+              onClick={startScanner}
+              disabled={isOutsideValidHours}
+              className={`bg-gradient-to-r from-blue-600 to-blue-800 text-white px-6 py-4 rounded-lg hover:shadow-lg hover:scale-105 transform transition-all duration-200 flex items-center mx-auto focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 ${
+                isOutsideValidHours ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
               <Camera size={24} className="mr-3" />
               <span className="text-lg font-medium">Bismillah Scan QR Code</span>
             </button>
             <p className="mt-3 text-sm text-gray-500">
-              Scan hanya tersedia pada waktu yang ditentukan
+              {isOutsideValidHours 
+                ? "Scan hanya tersedia pada waktu yang ditentukan" 
+                : "Klik tombol di atas untuk membuka kamera"}
             </p>
           </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
-          {isOutsideValidHours && (
-            <div className="p-6 text-center bg-red-50 border-b border-red-100">
-              <div className="flex items-center justify-center text-red-600 mb-3">
-                <AlertCircle size={24} className="mr-2" />
-                <span className="font-medium">Fitur scan tidak tersedia</span>
-              </div>
-              <p className="text-sm text-red-500">
-                Fitur ini hanya tersedia pada Sabtu pukul 16.00 hingga Ahad pukul 16.00.
-              </p>
-            </div>
-          )}
-
-          {!scanning && !scannedCode && !scanResult && (
-            <div className="p-6 text-center">
-              <button
-                onClick={startScanner}
-                disabled={isOutsideValidHours}
-                className={`bg-gradient-to-r from-blue-600 to-blue-800 text-white px-6 py-4 rounded-lg hover:shadow-lg hover:scale-105 transform transition-all duration-200 flex items-center mx-auto focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 ${
-                  isOutsideValidHours ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                <Camera size={24} className="mr-3" />
-                <span className="text-lg font-medium">Bismillah Scan QR Code</span>
-              </button>
-              <p className="mt-3 text-sm text-gray-500">
-                {isOutsideValidHours 
-                  ? "Scan hanya tersedia pada waktu yang ditentukan" 
-                  : "Klik tombol di atas untuk membuka kamera"}
-              </p>
-            </div>
-          )}
-
-          <div id="qr-reader-container" className={scanning ? "block p-4 relative" : "hidden"}>
-            <div className="mb-4 text-center">
-              <div className="text-md text-blue-700 font-medium mb-2">Pindai QR Code</div>
-              <div className="text-sm text-gray-500">Posisikan QR code di dalam kotak</div>
-            </div>
-            <div id="qr-reader" className="w-full relative"></div>
-            <div className="text-center mt-6">
-              <button
-                onClick={stopScanner}
-                className="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center mx-auto"
-              >
-                <XCircle size={18} className="mr-2" />
-                <span>Batalkan Scan</span>
-              </button>
-            </div>
+        )}
+        {/* QR Scanner Container */}
+        <div id="qr-reader-container" className={scanning ? "block p-4 relative" : "hidden"}>
+          <div className="mb-4 text-center">
+            <div className="text-md text-blue-700 font-medium mb-2">Pindai QR Code</div>
+            <div className="text-sm text-gray-500">Posisikan QR code di dalam kotak</div>
           </div>
+          <div id="qr-reader" className="w-full relative"></div>
+          <div className="text-center mt-6">
+            <button
+              onClick={stopScanner}
+              className="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center mx-auto"
+            >
+              <XCircle size={18} className="mr-2" />
+              <span>Batalkan Scan</span>
+            </button>
+          </div>
+        </div>
 
-          {scannedCode && !scanResult && !showLateForm && !showPermissionForm && !showKeteranganForm && (
-            <div className="p-6">
-              <div className="text-center mb-6">
-                {submitting ? (
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="relative">
-                      <RefreshCw size={56} className="animate-spin text-blue-500" />
-                      <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-                        <div className="h-10 w-10 rounded-full bg-white"></div>
-                      </div>
-                      <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                          <span className="text-blue-600 text-xl font-bold">✓</span>
-                        </div>
+        {/* Scanned Code Display (Processing) */}
+        {scannedCode && !scanResult && !showLateForm && !showPermissionForm && !showKeteranganForm && (
+          <div className="p-6">
+            <div className="text-center mb-6">
+              {submitting ? (
+                <div className="flex flex-col items-center justify-center">
+                  <div className="relative">
+                    <RefreshCw size={56} className="animate-spin text-blue-500" />
+                    <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+                      <div className="h-10 w-10 rounded-full bg-white"></div>
+                    </div>
+                    <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span className="text-blue-600 text-xl font-bold">✓</span>
                       </div>
                     </div>
-                    <span className="mt-4 text-lg font-medium text-gray-700">Memproses Kehadiran...</span>
-                    <span className="text-sm text-gray-500 mt-2">Mohon tunggu sebentar</span>
                   </div>
-                ) : (
+                  <span className="mt-4 text-lg font-medium text-gray-700">Memproses Kehadiran...</span>
+                  <span className="text-sm text-gray-500 mt-2">Mohon tunggu sebentar</span>
+                </div>
+              ) : (
                 <>
                   <div className="bg-green-100 p-4 rounded-lg mb-4 inline-block">
                     <CheckCircle size={56} className="mx-auto mb-2 text-green-500" />
