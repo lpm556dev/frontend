@@ -43,7 +43,6 @@ export default function QrCodeScanner() {
   const [weekendScanHistory, setWeekendScanHistory] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [todayScans, setTodayScans] = useState([]);
-  const [userScans, setUserScans] = useState({}); // Menyimpan scan per user
   
   // Scanner reference
   const scannerRef = useRef(null);
@@ -236,16 +235,16 @@ export default function QrCodeScanner() {
   };
 
   // Check if user has already scanned today
-  const hasUserScannedToday = (userId) => {
+  const hasScannedToday = () => {
     const today = getTodayDateString();
-    return userScans[userId]?.some(scan => scan.date === today) || false;
+    return todayScans.some(scan => scan.date === today);
   };
 
   // Check if user has completed both scans today
-  const hasUserCompletedTodayScans = (userId) => {
+  const hasCompletedTodayScans = () => {
     const today = getTodayDateString();
-    const userTodayScans = userScans[userId]?.filter(scan => scan.date === today) || [];
-    return userTodayScans.length >= 2;
+    const todayScanCount = todayScans.filter(scan => scan.date === today).length;
+    return todayScanCount >= 2;
   };
 
   // ===== Effects =====
@@ -458,10 +457,10 @@ export default function QrCodeScanner() {
       setWeekendScanHistory(JSON.parse(savedHistory));
     }
 
-    // Load user scans from localStorage
-    const savedUserScans = localStorage.getItem('userScans');
-    if (savedUserScans) {
-      setUserScans(JSON.parse(savedUserScans));
+    // Load today's scans from localStorage
+    const savedTodayScans = localStorage.getItem('todayScans');
+    if (savedTodayScans) {
+      setTodayScans(JSON.parse(savedTodayScans));
     }
 
     // Fetch initial attendance history
@@ -489,12 +488,12 @@ export default function QrCodeScanner() {
     }
   }, [weekendScanHistory]);
 
-  // Save user scans to localStorage when it changes
+  // Save today's scans to localStorage when it changes
   useEffect(() => {
-    if (Object.keys(userScans).length > 0) {
-      localStorage.setItem('userScans', JSON.stringify(userScans));
+    if (todayScans.length > 0) {
+      localStorage.setItem('todayScans', JSON.stringify(todayScans));
     }
-  }, [userScans]);
+  }, [todayScans]);
 
   // Handle auto attendance on Sunday after 16:00 if not scanned
   useEffect(() => {
@@ -559,38 +558,23 @@ export default function QrCodeScanner() {
       return;
     }
 
-    // Extract user ID from QR code (assuming QR code contains user ID)
-    const userId = decodedText.split('_')[0]; // Adjust this based on your QR code format
-    if (!userId) {
-      toast.error("QR code tidak valid - tidak ada ID pengguna");
-      stopScanner();
-      return;
-    }
-
     setScannedCode(decodedText);
     stopScanner();
     
     const now = new Date();
     const today = getTodayDateString();
     
-    // Add to user's scans
+    // Add to today's scans
     const newScan = {
       date: today,
       timestamp: now.getTime(),
       type: attendanceType
     };
     
-    setUserScans(prev => {
-      const userScanHistory = prev[userId] || [];
-      return {
-        ...prev,
-        [userId]: [...userScanHistory, newScan]
-      };
-    });
+    setTodayScans(prev => [...prev, newScan]);
     
-    // Check if this is the first or second scan today for this user
-    const userTodayScans = (userScans[userId] || []).filter(scan => scan.date === today);
-    const todayScanCount = userTodayScans.length + 1;
+    // Check if this is the first or second scan today
+    const todayScanCount = todayScans.filter(scan => scan.date === today).length + 1;
     
     if (todayScanCount === 1) {
       // First scan - set status to hadir
@@ -1226,6 +1210,43 @@ export default function QrCodeScanner() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Attendance History */}
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <h3 className="font-medium text-gray-700">Riwayat Presensi</h3>
+        </div>
+        <div className="divide-y divide-gray-200">
+          {attendanceHistory.length > 0 ? (
+            attendanceHistory.map((record, index) => (
+              <div key={index} className="p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-medium text-gray-800">
+                      {record.jenis === 'masuk' ? 'Masuk' : record.jenis === 'keluar' ? 'Keluar' : 'Izin'}
+                    </p>
+                    <p className="text-sm text-gray-500">{new Date(record.waktu_presensi).toLocaleString()}</p>
+                  </div>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    record.status === 'hadir' ? 'bg-green-100 text-green-800' :
+                    record.status === 'terlambat' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {record.status}
+                  </span>
+                </div>
+                {record.keterangan && (
+                  <p className="mt-2 text-sm text-gray-600">{record.keterangan}</p>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              Belum ada riwayat presensi
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Instructions */}
