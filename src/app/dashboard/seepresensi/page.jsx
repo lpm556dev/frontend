@@ -1,23 +1,20 @@
-// app/dashboard/lihatpresensi/page.jsx
-'use client';
-
+"use client";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import DashboardLayout from '@/components/DashboardLayout';
-import useAuthStore from '@/stores/authStore';
+import useAuthStore from '../../../stores/authStore';
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
+
+const MySwal = withReactContent(Swal);
 
 const LihatPresensiPage = () => {
   const router = useRouter();
-  const { role } = useAuthStore();
+  const { role, user, token } = useAuthStore();
   const [presensiData, setPresensiData] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState({
-    date: '',
-    status: '',
-    search: ''
-  });
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Format date for display
   const formatDate = (dateString) => {
@@ -33,356 +30,298 @@ const LihatPresensiPage = () => {
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
 
-  // Format short date for filter display
-  const formatShortDate = (dateString) => {
-    if (!dateString) return '-';
-    const options = {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    };
-    return new Date(dateString).toLocaleDateString('id-ID', options);
+  // Format date for filter input
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
   };
 
-  // Fetch presensi data
+  // Fetch presensi data based on user role
   const fetchPresensiData = async () => {
-    if (role !== '3' && role !== '4') return;
-
+    setLoading(true);
     try {
-      setIsLoading(true);
-      let url = 'https://api.siapguna.org/api/admin/get-presensi';
+      let apiUrl;
       
-      // Add query parameters if filters are set
-      const params = new URLSearchParams();
-      if (filter.date) params.append('date', filter.date);
-      if (filter.status) params.append('status', filter.status);
-      if (filter.search) params.append('search', filter.search);
-      
-      if (params.toString()) {
-        url += `?${params.toString()}`;
+      if (role === '3' || role === '4') {
+        // Admin can see all presensi
+        apiUrl = 'https://api.siapguna.org/api/admin/get-presensi';
+      } else {
+        // Regular users can only see their own presensi
+        apiUrl = `https://api.siapguna.org/api/users/get-presensi?user_id=${user?.userId}`;
       }
 
-      const response = await fetch(url);
-
+      console.log('Fetching presensi data from:', apiUrl); // Debugging
+      
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Response status:', response.status); // Debugging
+      
       if (!response.ok) {
-        throw new Error('Gagal mengambil data presensi');
+        const errorData = await response.json();
+        console.error('Error response data:', errorData); // Debugging
+        throw new Error(errorData.message || 'Gagal mengambil data presensi');
       }
 
       const data = await response.json();
+      console.log('API Response data:', data); // Debugging
+      
       if (data.success) {
-        // Format the data to match expected structure
+        // Format the data for display
         const formattedData = data.data.map(item => ({
           id: item.id,
-          user: {
-            name: item.nama_lengkap,
-            pleton: item.qrcode_text?.startsWith('A') ? 'A' : 'B' || '-'
-          },
-          status: item.keterangan || (item.jenis === 'masuk' ? 'Masuk' : 'Keluar'),
-          tanggal: item.waktu_presensi,
-          jenis: item.jenis
+          userId: item.user_id,
+          qrCode: item.qrcode_text,
+          name: item.nama_lengkap || item.user?.nama_lengkap || 'N/A',
+          pleton: item.qrcode_text?.startsWith('A') ? 'A' : 'B',
+          jenis: item.jenis,
+          status: item.status || (item.jenis === 'masuk' ? 'Masuk' : 'Keluar'),
+          keterangan: item.keterangan || '-',
+          waktu: item.waktu_presensi,
+          tanggal: formatDate(item.waktu_presensi)
         }));
+
+        console.log('Formatted data:', formattedData); // Debugging
         setPresensiData(formattedData);
+      } else {
+        throw new Error(data.message || 'Gagal memuat data presensi');
       }
     } catch (error) {
       console.error('Error fetching presensi data:', error);
+      MySwal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.message || 'Gagal memuat data presensi',
+        footer: 'Periksa koneksi internet Anda atau hubungi administrator'
+      });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
+    // Check if token exists before fetching data
+    if (!token) {
+      MySwal.fire({
+        icon: 'warning',
+        title: 'Autentikasi Diperlukan',
+        text: 'Silakan login terlebih dahulu',
+      }).then(() => {
+        router.push('/login');
+      });
+      return;
+    }
+    
     fetchPresensiData();
-  }, [filter, role]);
+  }, [role, user?.userId, token]);
 
-  // Handle filter change
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilter(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    setCurrentPage(1); // Reset to first page when filters change
-  };
+  // Filter data based on selected filters
+  const filteredData = presensiData.filter(item => {
+    // Filter by jenis (masuk/keluar/izin)
+    if (filter !== 'all' && item.jenis !== filter) {
+      return false;
+    }
+    
+    // Filter by date
+    if (dateFilter) {
+      const itemDate = new Date(item.waktu).toISOString().split('T')[0];
+      if (itemDate !== dateFilter) {
+        return false;
+      }
+    }
+    
+    // Filter by search query (name or qr code)
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      if (!item.name.toLowerCase().includes(query) && 
+          !item.qrCode.toLowerCase().includes(query)) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
 
   // Handle reset filters
-  const handleResetFilters = () => {
-    setFilter({
-      date: '',
-      status: '',
-      search: ''
-    });
+  const resetFilters = () => {
+    setFilter('all');
+    setDateFilter('');
+    setSearchQuery('');
   };
 
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = presensiData.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(presensiData.length / itemsPerPage);
-
-  // Status options for filter
-  const statusOptions = [
-    { value: '', label: 'Semua Status' },
-    { value: 'Hadir', label: 'Hadir' },
-    { value: 'Izin', label: 'Izin' },
-    { value: 'Sakit', label: 'Sakit' },
-    { value: 'Alpa', label: 'Alpa' }
-  ];
-
   return (
-    <DashboardLayout>
-      <main className="flex-1 overflow-y-auto py-4 px-3 sm:px-4 md:px-6 pb-20 transition-all duration-300 bg-gray-50">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-          <div>
-            <h1 className="text-xl font-bold text-gray-800">Data Presensi</h1>
-            <p className="text-sm text-gray-600">Kelola dan lihat data presensi peserta</p>
-          </div>
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Data Presensi</h1>
           <button 
-            onClick={() => router.back()}
-            className="mt-2 md:mt-0 flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+            onClick={() => router.push('/dashboard')}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
             Kembali ke Dashboard
           </button>
         </div>
 
         {/* Filter Section */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          <h2 className="text-sm font-medium mb-4">Filter Data</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Search Filter */}
+            {/* Jenis Presensi Filter */}
             <div>
-              <label htmlFor="search" className="block text-xs font-medium text-gray-700 mb-1">Cari Nama</label>
-              <input
-                type="text"
-                id="search"
-                name="search"
-                value={filter.search}
-                onChange={handleFilterChange}
-                placeholder="Cari berdasarkan nama..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Jenis Presensi</label>
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Semua</option>
+                <option value="masuk">Masuk</option>
+                <option value="keluar">Keluar</option>
+                <option value="izin">Izin</option>
+              </select>
             </div>
 
             {/* Date Filter */}
             <div>
-              <label htmlFor="date" className="block text-xs font-medium text-gray-700 mb-1">Tanggal</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
               <input
                 type="date"
-                id="date"
-                name="date"
-                value={filter.date}
-                onChange={handleFilterChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
-            {/* Status Filter */}
-            <div>
-              <label htmlFor="status" className="block text-xs font-medium text-gray-700 mb-1">Status</label>
-              <select
-                id="status"
-                name="status"
-                value={filter.status}
-                onChange={handleFilterChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {statusOptions.map(option => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+            {/* Search Filter */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cari Nama/QR Code</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Cari berdasarkan nama atau QR code..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
             </div>
+          </div>
 
-            {/* Reset Button */}
-            <div className="flex items-end">
-              <button
-                onClick={handleResetFilters}
-                className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-md text-sm font-medium transition-colors duration-300"
-              >
-                Reset Filter
-              </button>
-            </div>
+          {/* Reset Button */}
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={resetFilters}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
+            >
+              Reset Filter
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        {/* Data Table Section */}
+        {/* Data Table */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          {/* Loading State */}
-          {isLoading ? (
+          {loading ? (
             <div className="flex justify-center items-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-3">Memuat data presensi...</span>
+            </div>
+          ) : filteredData.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Nama
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Pleton
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      QR Code
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Jenis
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Keterangan
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Waktu
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredData.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {item.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.pleton}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.qrCode}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          item.jenis === 'masuk' ? 'bg-blue-100 text-blue-800' :
+                          item.jenis === 'keluar' ? 'bg-purple-100 text-purple-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {item.jenis}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          item.status === 'hadir' ? 'bg-green-100 text-green-800' :
+                          item.status === 'izin' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.keterangan}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {item.tanggal}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
-            <>
-              {/* Table */}
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        No
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Nama Peserta
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Pleton
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Jenis
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Waktu Presensi
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {currentItems.length > 0 ? (
-                      currentItems.map((item, index) => (
-                        <tr key={item.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {indexOfFirstItem + index + 1}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{item.user.name}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-500">{item.user.pleton}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              item.status === 'Hadir' ? 'bg-green-100 text-green-800' :
-                              item.status === 'Izin' ? 'bg-yellow-100 text-yellow-800' :
-                              item.status === 'Sakit' ? 'bg-blue-100 text-blue-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {item.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.jenis === 'masuk' ? 'Masuk' : 'Keluar'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(item.tanggal)}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
-                          {filter.date || filter.status || filter.search 
-                            ? 'Tidak ada data yang sesuai dengan filter' 
-                            : 'Belum ada data presensi'}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              {presensiData.length > 0 && (
-                <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-200">
-                  <div className="flex-1 flex justify-between sm:hidden">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      Next
-                    </button>
-                  </div>
-                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm text-gray-700">
-                        Menampilkan <span className="font-medium">{indexOfFirstItem + 1}</span> sampai{' '}
-                        <span className="font-medium">{Math.min(indexOfLastItem, presensiData.length)}</span> dari{' '}
-                        <span className="font-medium">{presensiData.length}</span> data
-                      </p>
-                    </div>
-                    <div>
-                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                        <button
-                          onClick={() => setCurrentPage(1)}
-                          disabled={currentPage === 1}
-                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                        >
-                          <span className="sr-only">First</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                          disabled={currentPage === 1}
-                          className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                        >
-                          <span className="sr-only">Previous</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                        
-                        {/* Page numbers */}
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                          <button
-                            key={page}
-                            onClick={() => setCurrentPage(page)}
-                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                              currentPage === page
-                                ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        ))}
-                        
-                        <button
-                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                          disabled={currentPage === totalPages}
-                          className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                        >
-                          <span className="sr-only">Next</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setCurrentPage(totalPages)}
-                          disabled={currentPage === totalPages}
-                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                        >
-                          <span className="sr-only">Last</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                            <path fillRule="evenodd" d="M4.293 15.707a1 1 0 010-1.414L8.586 10 4.293 5.707a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                      </nav>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
+            <div className="text-center py-8">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Tidak ada data presensi</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {searchQuery || filter !== 'all' || dateFilter 
+                  ? "Coba ubah filter pencarian Anda" 
+                  : "Belum ada data presensi yang tercatat"}
+              </p>
+            </div>
           )}
         </div>
-      </main>
-    </DashboardLayout>
+      </div>
+    </div>
   );
 };
 
