@@ -449,7 +449,7 @@ const DashboardContent = ({
             </div>
           ) : recentPresensi.length > 0 ? (
             <div className="space-y-3">
-              {recentPresensi.slice(0, 3).map((item) => (
+              {recentPresensi.slice(0, 2).map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
                   <div className="flex items-center">
                     <div className={`w-2 h-2 rounded-full mr-3 ${item.status === 'hadir' ? 'bg-green-500' :
