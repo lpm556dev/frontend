@@ -41,7 +41,8 @@ const PresensiPage = () => {
     setLoading(true);
     try {
       if (!user?.userId) {
-        throw new Error('User ID not available');
+        setLoading(false);
+        return;
       }
 
       const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.userId}`, {
@@ -50,14 +51,14 @@ const PresensiPage = () => {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to fetch presence data');
       }
 
       const data = await response.json();
-      
+
       if (data.success) {
         const formattedData = data.data.map(item => ({
           id: item.id || Math.random().toString(36).substr(2, 9),
@@ -89,7 +90,11 @@ const PresensiPage = () => {
   };
 
   useEffect(() => {
-    fetchPresensiData();
+    if (user?.userId) {
+      fetchPresensiData();
+    } else {
+      setLoading(false);
+    }
   }, [user?.userId, token]);
 
   // Filter data based on selected filters
@@ -98,17 +103,17 @@ const PresensiPage = () => {
     if (filter !== 'all' && item.jenis !== filter) {
       return false;
     }
-    
+
     // Filter by date
     if (dateFilter && item.filterDate !== dateFilter) {
       return false;
     }
-    
+
     // Filter by search query (QR code)
     if (searchQuery && !item.qrCode.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
-    
+
     return true;
   });
 
@@ -124,7 +129,7 @@ const PresensiPage = () => {
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800">My Presence Records</h1>
-          <button 
+          <button
             onClick={() => router.push('/dashboard')}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -237,20 +242,18 @@ const PresensiPage = () => {
                         {item.qrCode}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          item.jenis === 'masuk' ? 'bg-blue-100 text-blue-800' :
+                        <span className={`px-2 py-1 rounded-full text-xs ${item.jenis === 'masuk' ? 'bg-blue-100 text-blue-800' :
                           item.jenis === 'keluar' ? 'bg-purple-100 text-purple-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }`}>
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
                           {item.jenis}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          item.status.toLowerCase() === 'hadir' ? 'bg-green-100 text-green-800' :
+                        <span className={`px-2 py-1 rounded-full text-xs ${item.status.toLowerCase() === 'hadir' ? 'bg-green-100 text-green-800' :
                           item.status.toLowerCase() === 'izin' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
+                            'bg-red-100 text-red-800'
+                          }`}>
                           {item.status}
                         </span>
                       </td>
@@ -272,8 +275,8 @@ const PresensiPage = () => {
               </svg>
               <h3 className="mt-2 text-sm font-medium text-gray-900">No presence data found</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {searchQuery || filter !== 'all' || dateFilter 
-                  ? "Try adjusting your search filters" 
+                {searchQuery || filter !== 'all' || dateFilter
+                  ? "Try adjusting your search filters"
                   : "No presence data has been recorded yet"}
               </p>
             </div>
