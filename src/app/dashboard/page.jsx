@@ -138,7 +138,7 @@ const MySwal = withReactContent(Swal);
         notifications: 3,
         quranProgress: {
           juz: 0,
-          surah: '-',
+          surah: 'Al-Baqarah',
           page: 0,
           lastRead: '0',
         }

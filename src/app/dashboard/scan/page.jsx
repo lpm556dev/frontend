@@ -43,6 +43,7 @@ export default function QrCodeScanner() {
   const [weekendScanHistory, setWeekendScanHistory] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [todayScans, setTodayScans] = useState([]);
+  const [userScans, setUserScans] = useState({}); // Menyimpan scan per user
   
   // Scanner reference
   const scannerRef = useRef(null);
@@ -235,16 +236,16 @@ export default function QrCodeScanner() {
   };
 
   // Check if user has already scanned today
-  const hasScannedToday = () => {
+  const hasUserScannedToday = (userId) => {
     const today = getTodayDateString();
-    return todayScans.some(scan => scan.date === today);
+    return userScans[userId]?.some(scan => scan.date === today) || false;
   };
 
   // Check if user has completed both scans today
-  const hasCompletedTodayScans = () => {
+  const hasUserCompletedTodayScans = (userId) => {
     const today = getTodayDateString();
-    const todayScanCount = todayScans.filter(scan => scan.date === today).length;
-    return todayScanCount >= 2;
+    const userTodayScans = userScans[userId]?.filter(scan => scan.date === today) || [];
+    return userTodayScans.length >= 2;
   };
 
   // ===== Effects =====
@@ -457,10 +458,10 @@ export default function QrCodeScanner() {
       setWeekendScanHistory(JSON.parse(savedHistory));
     }
 
-    // Load today's scans from localStorage
-    const savedTodayScans = localStorage.getItem('todayScans');
-    if (savedTodayScans) {
-      setTodayScans(JSON.parse(savedTodayScans));
+    // Load user scans from localStorage
+    const savedUserScans = localStorage.getItem('userScans');
+    if (savedUserScans) {
+      setUserScans(JSON.parse(savedUserScans));
     }
 
     // Fetch initial attendance history
@@ -488,12 +489,12 @@ export default function QrCodeScanner() {
     }
   }, [weekendScanHistory]);
 
-  // Save today's scans to localStorage when it changes
+  // Save user scans to localStorage when it changes
   useEffect(() => {
-    if (todayScans.length > 0) {
-      localStorage.setItem('todayScans', JSON.stringify(todayScans));
+    if (Object.keys(userScans).length > 0) {
+      localStorage.setItem('userScans', JSON.stringify(userScans));
     }
-  }, [todayScans]);
+  }, [userScans]);
 
   // Handle auto attendance on Sunday after 16:00 if not scanned
   useEffect(() => {
@@ -558,23 +559,38 @@ export default function QrCodeScanner() {
       return;
     }
 
+    // Extract user ID from QR code (assuming QR code contains user ID)
+    const userId = decodedText.split('_')[0]; // Adjust this based on your QR code format
+    if (!userId) {
+      toast.error("QR code tidak valid - tidak ada ID pengguna");
+      stopScanner();
+      return;
+    }
+
     setScannedCode(decodedText);
     stopScanner();
     
     const now = new Date();
     const today = getTodayDateString();
     
-    // Add to today's scans
+    // Add to user's scans
     const newScan = {
       date: today,
       timestamp: now.getTime(),
       type: attendanceType
     };
     
-    setTodayScans(prev => [...prev, newScan]);
+    setUserScans(prev => {
+      const userScanHistory = prev[userId] || [];
+      return {
+        ...prev,
+        [userId]: [...userScanHistory, newScan]
+      };
+    });
     
-    // Check if this is the first or second scan today
-    const todayScanCount = todayScans.filter(scan => scan.date === today).length + 1;
+    // Check if this is the first or second scan today for this user
+    const userTodayScans = (userScans[userId] || []).filter(scan => scan.date === today);
+    const todayScanCount = userTodayScans.length + 1;
     
     if (todayScanCount === 1) {
       // First scan - set status to hadir
