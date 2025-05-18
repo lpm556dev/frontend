@@ -43,6 +43,7 @@ export default function QrCodeScanner() {
   const [weekendScanHistory, setWeekendScanHistory] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [todayScans, setTodayScans] = useState([]);
+  const [usedCodes, setUsedCodes] = useState(new Set()); // Track used QR codes
   
   // Scanner reference
   const scannerRef = useRef(null);
@@ -245,6 +246,11 @@ export default function QrCodeScanner() {
     const today = getTodayDateString();
     const todayScanCount = todayScans.filter(scan => scan.date === today).length;
     return todayScanCount >= 2;
+  };
+
+  // Check if QR code has been used before
+  const isCodeUsed = (code) => {
+    return usedCodes.has(code);
   };
 
   // ===== Effects =====
@@ -463,6 +469,12 @@ export default function QrCodeScanner() {
       setTodayScans(JSON.parse(savedTodayScans));
     }
 
+    // Load used codes from localStorage
+    const savedUsedCodes = localStorage.getItem('usedQRCodes');
+    if (savedUsedCodes) {
+      setUsedCodes(new Set(JSON.parse(savedUsedCodes)));
+    }
+
     // Fetch initial attendance history
     fetchAttendanceHistory();
 
@@ -494,6 +506,13 @@ export default function QrCodeScanner() {
       localStorage.setItem('todayScans', JSON.stringify(todayScans));
     }
   }, [todayScans]);
+
+  // Save used codes to localStorage when it changes
+  useEffect(() => {
+    if (usedCodes.size > 0) {
+      localStorage.setItem('usedQRCodes', JSON.stringify(Array.from(usedCodes)));
+    }
+  }, [usedCodes]);
 
   // Handle auto attendance on Sunday after 16:00 if not scanned
   useEffect(() => {
@@ -554,6 +573,13 @@ export default function QrCodeScanner() {
   const onScanSuccess = (decodedText) => {
     if (isOutsideValidHours) {
       toast.error("Tidak dapat melakukan scan di luar waktu yang ditentukan");
+      stopScanner();
+      return;
+    }
+
+    // Check if this code has been used before
+    if (isCodeUsed(decodedText)) {
+      toast.error("QR code ini sudah pernah digunakan untuk presensi");
       stopScanner();
       return;
     }
@@ -780,6 +806,12 @@ export default function QrCodeScanner() {
   const submitAttendance = async (qrcodeText) => {
     if (!qrcodeText) return;
 
+    // Check if this code has been used before (double check)
+    if (isCodeUsed(qrcodeText)) {
+      toast.error("QR code ini sudah pernah digunakan untuk presensi");
+      return;
+    }
+
     setSubmitting(true);
     setScanResult(null);
 
@@ -821,6 +853,13 @@ export default function QrCodeScanner() {
       const data = await response.json();
 
       if (response.ok) {
+        // Mark this QR code as used
+        setUsedCodes(prev => {
+          const newSet = new Set(prev);
+          newSet.add(qrcodeText);
+          return newSet;
+        });
+
         setScanResult({
           success: true,
           message: data.message,
@@ -861,6 +900,10 @@ export default function QrCodeScanner() {
       if (response.ok) {
         const data = await response.json();
         setAttendanceHistory(data.data || []);
+        
+        // Extract all used QR codes from history
+        const codes = data.data?.map(item => item.qrcode_text) || [];
+        setUsedCodes(new Set(codes));
       } else {
         console.error('Failed to fetch attendance history');
       }
