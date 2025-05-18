@@ -1,21 +1,31 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import useAuthStore from '../../../stores/authStore';
 import DashboardHeader from '../../../components/DashboardHeader';
 
+// Buat custom hook untuk auth store yang aman SSR
+const useSafeAuthStore = () => {
+  const [store, setStore] = useState(null);
+  
+  useEffect(() => {
+    // Dynamic import untuk menghindari SSR issues
+    import('../../../stores/authStore').then((module) => {
+      setStore(module.useAuthStore);
+    });
+  }, []);
+
+  return store ? store() : { role: null, user: null };
+};
+
 const LihatPresensiPage = () => {
-  const { role, user } = useAuthStore((state) => ({
-    role: state.role,
-    user: state.user
-  }));
+  const { role, user } = useSafeAuthStore();
   const router = useRouter();
   const [presensiData, setPresensiData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterDate, setFilterDate] = useState('');
   const [filterName, setFilterName] = useState('');
 
-  // Contoh data presensi untuk testing
+  // Data mock untuk development
   const mockPresensiData = [
     {
       id: 1,
@@ -24,7 +34,7 @@ const LihatPresensiPage = () => {
       jenis: "masuk",
       keterangan: "hadir seperti biasanya",
       status: "hadir",
-      waktu_presensi: "2023-11-15T08:05:00Z"
+      waktu_presensi: new Date().toISOString()
     },
     {
       id: 2,
@@ -33,31 +43,25 @@ const LihatPresensiPage = () => {
       jenis: "keluar",
       keterangan: "pulang setelah kegiatan",
       status: "hadir",
-      waktu_presensi: "2023-11-15T16:30:00Z"
-    },
-    {
-      id: 3,
-      qrcode_text: "A52001",
-      nama_lengkap: "Siti Nurhaliza",
-      jenis: "masuk",
-      keterangan: "hadir tepat waktu",
-      status: "hadir",
-      waktu_presensi: "2023-11-15T07:55:00Z"
+      waktu_presensi: new Date().toISOString()
     }
   ];
 
   useEffect(() => {
-    // Only run on client side
+    // Pastikan hanya berjalan di client side
     if (typeof window === 'undefined') return;
 
-    if (role !== '3' && role !== '4') {
+    // Jika role tidak sesuai, redirect
+    if (role && role !== '3' && role !== '4') {
       router.push('/dashboard');
       return;
     }
-    
+
     // Untuk development, gunakan mock data
-    // fetchPresensiData();
     processPresensiData(mockPresensiData);
+    
+    // Untuk production, gunakan:
+    // fetchPresensiData();
   }, [role, router]);
 
   const fetchPresensiData = async () => {
@@ -75,40 +79,45 @@ const LihatPresensiPage = () => {
       }
     } catch (error) {
       console.error('Error:', error);
+      setPresensiData([]);
     } finally {
       setLoading(false);
     }
   };
 
   const processPresensiData = (rawData) => {
-    // Group by qrcode_text to combine masuk/keluar
+    if (!rawData || !Array.isArray(rawData)) {
+      setPresensiData([]);
+      setLoading(false);
+      return;
+    }
+
     const groupedData = rawData.reduce((acc, item) => {
-      if (!acc[item.qrcode_text]) {
-        acc[item.qrcode_text] = {
+      const key = item.qrcode_text;
+      if (!key) return acc;
+
+      if (!acc[key]) {
+        acc[key] = {
           id: item.id,
-          qrcode_text: item.qrcode_text,
-          nama_lengkap: item.nama_lengkap,
-          pleton: item.qrcode_text?.startsWith('A') ? 'A' : 'B',
-          status: item.status,
-          keterangan: item.keterangan,
+          qrcode_text: key,
+          nama_lengkap: item.nama_lengkap || 'Unknown',
+          pleton: key.startsWith('A') ? 'A' : 'B',
+          status: item.status || 'unknown',
+          keterangan: item.keterangan || '',
           waktu_masuk: null,
-          waktu_keluar: null,
-          originalData: []
+          waktu_keluar: null
         };
       }
-      
+
       if (item.jenis === 'masuk') {
-        acc[item.qrcode_text].waktu_masuk = item.waktu_presensi;
+        acc[key].waktu_masuk = item.waktu_presensi;
       } else if (item.jenis === 'keluar') {
-        acc[item.qrcode_text].waktu_keluar = item.waktu_presensi;
+        acc[key].waktu_keluar = item.waktu_presensi;
       }
-      
-      acc[item.qrcode_text].originalData.push(item);
-      
+
       return acc;
     }, {});
 
-    // Convert to array
     const formattedData = Object.values(groupedData).map(item => ({
       ...item,
       user: {
@@ -121,55 +130,40 @@ const LihatPresensiPage = () => {
     setLoading(false);
   };
 
-  const formatDateTime = (dateString) => {
+  const formatTime = (dateString) => {
     if (!dateString) return '-';
-    const options = { 
-      day: 'numeric', 
-      month: 'short', 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false
-    };
-    return new Date(dateString).toLocaleDateString('id-ID', options);
-  };
-
-  const formatTimeOnly = (dateString) => {
-    if (!dateString) return '-';
-    const options = { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false
-    };
-    return new Date(dateString).toLocaleTimeString('id-ID', options);
+    try {
+      return new Date(dateString).toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch {
+      return '-';
+    }
   };
 
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-100 text-gray-800';
     
     switch(status.toLowerCase()) {
-      case 'hadir':
-        return 'bg-green-100 text-green-800';
-      case 'izin':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'sakit':
-        return 'bg-blue-100 text-blue-800';
-      case 'alfa':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'hadir': return 'bg-green-100 text-green-800';
+      case 'izin': return 'bg-yellow-100 text-yellow-800';
+      case 'sakit': return 'bg-blue-100 text-blue-800';
+      case 'alfa': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  // Filter data based on filter inputs
   const filteredData = presensiData.filter(item => {
-    const dateToCheck = item.waktu_masuk || item.waktu_keluar;
-    const matchesDate = filterDate ? 
-      new Date(dateToCheck).toISOString().split('T')[0] === filterDate : 
-      true;
-    const matchesName = filterName ? 
-      item.user.name.toLowerCase().includes(filterName.toLowerCase()) : 
-      true;
-    return matchesDate && matchesName;
+    const date = item.waktu_masuk || item.waktu_keluar;
+    const dateMatch = filterDate 
+      ? new Date(date).toISOString().split('T')[0] === filterDate 
+      : true;
+    const nameMatch = filterName
+      ? item.user.name.toLowerCase().includes(filterName.toLowerCase())
+      : true;
+    return dateMatch && nameMatch;
   });
 
   if (loading) {
@@ -192,66 +186,11 @@ const LihatPresensiPage = () => {
       />
 
       <div className="container mx-auto p-4">
-        {/* Form untuk menambahkan presensi baru */}
+        {/* Form Filter */}
         <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
-          <h3 className="font-medium text-lg mb-4">Tambah Data Presensi</h3>
-          <form className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">QR Code</label>
-              <input
-                type="text"
-                placeholder="Contoh: B51004"
-                className="w-full p-2 border rounded-md"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Status</label>
-              <select className="w-full p-2 border rounded-md">
-                <option value="hadir">Hadir</option>
-                <option value="izin">Izin</option>
-                <option value="sakit">Sakit</option>
-                <option value="alfa">Alfa</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Keterangan</label>
-              <input
-                type="text"
-                placeholder="Keterangan presensi"
-                className="w-full p-2 border rounded-md"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Jam Masuk</label>
-              <input
-                type="time"
-                className="w-full p-2 border rounded-md"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Jam Keluar</label>
-              <input
-                type="time"
-                className="w-full p-2 border rounded-md"
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                type="button"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Simpan Presensi
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Filter Section */}
-        <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
-          <h3 className="font-medium text-lg mb-4">Filter Data Presensi</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Tanggal Presensi</label>
+              <label className="block text-sm font-medium mb-1">Tanggal</label>
               <input
                 type="date"
                 value={filterDate}
@@ -260,7 +199,7 @@ const LihatPresensiPage = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Cari Nama Peserta</label>
+              <label className="block text-sm font-medium mb-1">Cari Nama</label>
               <input
                 type="text"
                 placeholder="Cari nama peserta..."
@@ -283,18 +222,18 @@ const LihatPresensiPage = () => {
           </div>
         </div>
 
-        {/* Data Table */}
+        {/* Tabel Data */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Peserta</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pleton</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jam Masuk</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jam Keluar</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Masuk</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Keluar</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Keterangan</th>
                 </tr>
               </thead>
@@ -304,19 +243,19 @@ const LihatPresensiPage = () => {
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{index + 1}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium">{item.user.name || '-'}</div>
+                        <div className="text-sm font-medium">{item.user.name}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{item.user.pleton || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{item.user.pleton}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(item.status)}`}>
                           {item.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {item.waktu_masuk ? formatTimeOnly(item.waktu_masuk) : '-'}
+                        {formatTime(item.waktu_masuk)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {item.waktu_keluar ? formatTimeOnly(item.waktu_keluar) : '-'}
+                        {formatTime(item.waktu_keluar)}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {item.keterangan || '-'}
@@ -326,7 +265,7 @@ const LihatPresensiPage = () => {
                 ) : (
                   <tr>
                     <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
-                      Tidak ada data presensi yang ditemukan
+                      Tidak ada data presensi
                     </td>
                   </tr>
                 )}
