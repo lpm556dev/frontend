@@ -28,6 +28,10 @@ const MySwal = withReactContent(Swal);
     router.push('/dashboard/kegiatan');
   }
 
+  const navigateToLihatPresensi = () => {
+    router.push('/dashboard/lihatpresensi');
+  }
+
   const navigateToKelolaTugas = () => {
     router.push('/dashboard/kelolatugas');
   }
@@ -55,10 +59,6 @@ const MySwal = withReactContent(Swal);
   const navigateToPresensi = () => {
     router.push('/dashboard/presensi');
   };
-
-  const navigateToLihatPresensi = () => {
-  router.push('/dashboard/lihatpresensi');
-};
 
   const navigateToAlQuran = () => {
     router.push('/dashboard/Quran');
