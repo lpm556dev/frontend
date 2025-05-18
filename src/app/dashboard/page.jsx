@@ -28,8 +28,8 @@ const MySwal = withReactContent(Swal);
     router.push('/dashboard/kegiatan');
   }
 
-  const navigateToLihatPresensi = () => {
-    router.push('/dashboard/lihatpresensi');
+  const navigateToSeePresensi = () => {
+    router.push('/dashboard/seepresensi');
   }
 
   const navigateToKelolaTugas = () => {
@@ -240,7 +240,8 @@ const handleLogout = () => {
       navigateToProfile={navigateToProfile}
       navigateToECard={navigateToECard}
       navigateToPresensi={navigateToPresensi}
-      navigateToLihatPresensi={navigateToLihatPresensi}
+      navigateToSee
+      navigateToSeePresensi={navigateToSeePresensi}
       navigateToAlQuran={navigateToAlQuran}
       navigateToTugas={() => console.log('Navigate to Tugas')}
       navigateToHome={navigateToHome}

@@ -7,7 +7,7 @@ const DashboardContent = ({
   navigateToRundown,
   navigateToKelolaTugas,
   navigateToKelolaKegiatan,
-  navigateToLihatPresensi,
+  navigateToSeePresensi,
   navigateToPresensi,
   navigateToTugas,
   navigateToAlQuran,
@@ -422,7 +422,7 @@ const DashboardContent = ({
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-sm">Presensi Terbaru</h3>
             <button
-              onClick={() => navigateToLihatPresensi()}
+              onClick={() => navigateToSeePresensi()}
               className="text-blue-600 hover:text-blue-800 text-xs font-medium flex items-center"
             >
               Lihat Semua
