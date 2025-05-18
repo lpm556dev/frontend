@@ -6,17 +6,25 @@ import useAuthStore from '../../../stores/authStore';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const Presensi = () => {
-  const [attendanceData, setAttendanceData] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [date, setDate] = useState('');
+  const [status, setStatus] = useState('');
+  const [notes, setNotes] = useState('');
+  const [showNotesForm, setShowNotesForm] = useState(false);
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [selectedDate, setSelectedDate] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [actualAttendance, setActualAttendance] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuthStore();
   const [attendanceSummary, setAttendanceSummary] = useState({
     hadir: 0,
     izin: 0,
     sakit: 0,
-    alpa: 0,
-    total: 0
+    total: 16
   });
 
   // Check if it's mobile view
@@ -30,71 +38,121 @@ const Presensi = () => {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
-  // Fetch attendance data
+  // Fetch user attendance data
   useEffect(() => {
-    const fetchAttendanceData = async () => {
+    const fetchUserAttendance = async () => {
       try {
         setIsLoading(true);
         if (!user?.id) return;
         
-        const response = await fetch(`http://api.siapguna.org/api/users/presensi?user_id=${user.id}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch attendance data');
-        }
-        
+        const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.id}`);
         const data = await response.json();
-        setAttendanceData(data.data || []);
-        calculateSummary(data.data || []);
+        
+        if (data.success) {
+          setActualAttendance(data.data);
+          calculateAttendanceSummary(data.data);
+        } else {
+          console.error('Failed to fetch attendance data:', data.message);
+        }
       } catch (error) {
         console.error('Error fetching attendance data:', error);
-        setError('Gagal memuat data presensi');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchAttendanceData();
+    fetchUserAttendance();
   }, [user?.id]);
 
-  // Calculate attendance summary
-  const calculateSummary = (data) => {
+  // Get weekend dates (Saturday and Sunday)
+  const getWeekendDates = () => {
+    const today = new Date();
+    const currentDay = today.getDay();
+    
+    // Calculate next Saturday
+    let saturday = new Date(today);
+    if (currentDay !== 6) {
+      const daysUntilSaturday = currentDay === 0 ? 6 : (6 - currentDay);
+      saturday.setDate(today.getDate() + daysUntilSaturday);
+    }
+    
+    // Calculate next Sunday
+    let sunday = new Date(saturday);
+    sunday.setDate(saturday.getDate() + 1);
+    
+    // Format dates
+    const formatDate = (date) => {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+    
+    const formatDisplayDate = (date) => {
+      return date.toLocaleDateString('id-ID', { 
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric'
+      });
+    };
+    
+    return {
+      saturday: {
+        formatted: formatDate(saturday),
+        display: formatDisplayDate(saturday)
+      },
+      sunday: {
+        formatted: formatDate(sunday),
+        display: formatDisplayDate(sunday)
+      }
+    };
+  };
+
+  const weekendDates = getWeekendDates();
+  const saturdayFormatted = weekendDates.saturday.display;
+  const sundayFormatted = weekendDates.sunday.display;
+
+  // Set nearest Saturday as default when component loads
+  useEffect(() => {
+    setDate(weekendDates.saturday.formatted);
+  }, []);
+
+  // Calculate attendance summary from API data
+  const calculateAttendanceSummary = (attendanceData) => {
     const summary = {
       hadir: 0,
       izin: 0,
       sakit: 0,
-      alpa: 0,
-      total: 0
+      total: 16
     };
 
     // Group by date to count unique attendance days
     const attendanceDays = new Set();
-    const leaveDays = new Set();
     
-    data.forEach(record => {
+    attendanceData.forEach(record => {
       const date = new Date(record.waktu_presensi).toLocaleDateString();
       
       if (record.jenis === 'masuk' || record.jenis === 'keluar') {
         attendanceDays.add(date);
-      } else if (record.jenis === 'izin') {
-        leaveDays.add(date);
       }
       
       if (record.status === 'izin') {
         summary.izin++;
       } else if (record.status === 'sakit') {
         summary.sakit++;
-      } else if (record.status === 'alpa') {
-        summary.alpa++;
+      } else if (record.status === 'telat') {
+        // Count as present but late
+        attendanceDays.add(date);
       }
     });
 
     summary.hadir = attendanceDays.size;
-    summary.total = summary.hadir + summary.izin + summary.sakit + summary.alpa;
     setAttendanceSummary(summary);
   };
 
-  // Format time
-  const formatTime = (dateTimeString) => {
+  // Format attendance time
+  const formatAttendanceTime = (dateTimeString) => {
     if (!dateTimeString) return '-';
     const date = new Date(dateTimeString);
     return date.toLocaleTimeString('id-ID', { 
@@ -103,8 +161,8 @@ const Presensi = () => {
     });
   };
 
-  // Format date
-  const formatDate = (dateTimeString) => {
+  // Format attendance date
+  const formatAttendanceDate = (dateTimeString) => {
     if (!dateTimeString) return '-';
     const date = new Date(dateTimeString);
     return date.toLocaleDateString('id-ID', { 
@@ -115,11 +173,11 @@ const Presensi = () => {
     });
   };
 
-  // Group attendance by date
+  // Group actual attendance data by date
   const groupAttendanceByDate = () => {
     const grouped = {};
     
-    attendanceData.forEach(record => {
+    actualAttendance.forEach(record => {
       const date = new Date(record.waktu_presensi).toLocaleDateString('id-ID');
       
       if (!grouped[date]) {
@@ -127,15 +185,12 @@ const Presensi = () => {
           date,
           masuk: null,
           keluar: null,
-          izin: null,
-          status: null,
           keterangan: null
         };
       }
       
       if (record.jenis === 'masuk') {
         grouped[date].masuk = record;
-        grouped[date].status = record.status;
         grouped[date].keterangan = record.keterangan || null;
       } else if (record.jenis === 'keluar') {
         grouped[date].keluar = record;
@@ -143,68 +198,133 @@ const Presensi = () => {
           grouped[date].keterangan = record.keterangan;
         }
       } else if (record.jenis === 'izin') {
-        grouped[date].izin = record;
-        grouped[date].status = record.status;
         grouped[date].keterangan = record.keterangan || 'Izin';
       }
     });
     
     return Object.values(grouped);
   };
+  
+  const groupedAttendance = groupAttendanceByDate();
 
-  // Get status display and class
-  const getStatusInfo = (record) => {
-    if (record.izin) {
-      return {
-        text: record.izin.status === 'sakit' ? 'Sakit' : 'Izin',
-        class: record.izin.status === 'sakit' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
-      };
-    }
-    
-    if (record.masuk && record.keluar) {
-      return {
-        text: record.status === 'telat' ? 'Hadir (Terlambat)' : 'Hadir',
-        class: record.status === 'telat' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'
-      };
-    }
-    
-    if (record.masuk) {
-      return {
-        text: 'Hadir (Belum Keluar)',
-        class: 'bg-yellow-100 text-yellow-800'
-      };
-    }
-    
-    return {
-      text: '-',
-      class: 'bg-gray-100 text-gray-800'
-    };
+  // Handle date selection
+  const handleDateSelection = (date, displayDate) => {
+    setSelectedDate(displayDate);
+    setDate(date);
+    setShowStatusMenu(true);
+    setShowNotesForm(false);
+    setStatus('');
+    setNotes('');
+    setEditingRecord(null);
   };
 
-  const groupedAttendance = groupAttendanceByDate();
+  // Handle status click
+  const handleStatusClick = (selectedStatus) => {
+    setStatus(selectedStatus);
+    setShowNotesForm(selectedStatus !== 'Hadir');
+    if (selectedStatus === 'Hadir') {
+      setNotes('');
+    }
+  };
+
+  // Handle form submit
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (!status) {
+      setError('Silakan pilih status kehadiran');
+      return;
+    }
+    
+    if ((status === 'Izin' || status === 'Sakit' || status === 'Telat') && !notes) {
+      setError('Silakan isi keterangan');
+      return;
+    }
+    
+    setError('');
+    
+    if (editingRecord) {
+      // Update existing record
+      const updatedRecords = attendanceRecords.map(record =>
+        record.id === editingRecord.id ? { ...record, status, notes } : record
+      );
+      setAttendanceRecords(updatedRecords);
+      setSuccessMessage('Rencana kehadiran berhasil diperbarui');
+    } else {
+      // Add new record
+      const newRecord = {
+        id: Date.now(),
+        date: selectedDate,
+        status,
+        notes
+      };
+      setAttendanceRecords([...attendanceRecords, newRecord]);
+      setSuccessMessage('Rencana kehadiran berhasil ditambahkan');
+    }
+    
+    resetForm();
+  };
+
+  // Handle edit
+  const handleEdit = (record) => {
+    setEditingRecord(record);
+    setStatus(record.status);
+    setNotes(record.notes);
+    setShowStatusMenu(true);
+    setShowNotesForm(record.status !== 'Hadir');
+    setSelectedDate(record.date);
+    
+    // Scroll to status menu
+    setTimeout(() => {
+      const element = document.getElementById('status-menu');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
+  // Handle delete
+  const handleDelete = (id) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus rencana kehadiran ini?')) {
+      setAttendanceRecords(attendanceRecords.filter(record => record.id !== id));
+      setSuccessMessage('Rencana kehadiran berhasil dihapus');
+    }
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setStatus('');
+    setNotes('');
+    setShowNotesForm(false);
+    setShowStatusMenu(false);
+    setEditingRecord(null);
+    setSelectedDate('');
+    setError('');
+    setTimeout(() => setSuccessMessage(''), 3000);
+  };
 
   return (
     <div className={`mx-auto bg-white rounded-lg shadow-sm ${isMobile ? 'p-3' : 'p-6'}`}>
       <h1 className={`${isMobile ? 'text-2xl' : 'text-3xl'} font-bold text-center py-4`}>PRESENSI</h1>
       
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 mb-4 rounded relative">
-          <span className="block sm:inline">{error}</span>
+      {/* Success/Error Messages */}
+      {successMessage && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 mb-4 rounded relative">
+          <span className="block sm:inline">{successMessage}</span>
         </div>
       )}
       
-      {/* Attendance Summary Card */}
-      <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-100">
+      {/* Kehadiran Summary Card */}
+      <div className="bg-yellow-50 rounded-lg p-4 mb-6 border border-yellow-100">
         <div className={`${isMobile ? 'flex flex-col space-y-3' : 'flex justify-between items-center'}`}>
           <div className={isMobile ? 'text-center' : ''}>
-            <h2 className="text-lg font-medium">Rekap Kehadiran</h2>
+            <h2 className="text-lg font-medium">Kehadiran</h2>
             <p className="font-bold mt-1">
-              {isLoading ? 'Loading...' : `${attendanceSummary.hadir} HARI DARI ${attendanceSummary.total} HARI`}
+              {isLoading ? 'Loading...' : `${attendanceSummary.hadir} DARI ${attendanceSummary.total} SESI`}
             </p>
           </div>
           
-          <div className={`${isMobile ? 'grid grid-cols-2 gap-4' : 'flex space-x-8'}`}>
+          <div className={`${isMobile ? 'grid grid-cols-3 gap-4' : 'flex space-x-8'}`}>
             <div className="text-center">
               <p className="font-semibold">Hadir</p>
               <p className="font-bold">{isLoading ? '-' : attendanceSummary.hadir}</p>
@@ -217,15 +337,11 @@ const Presensi = () => {
               <p className="font-semibold">Sakit</p>
               <p className="font-bold">{isLoading ? '-' : attendanceSummary.sakit}</p>
             </div>
-            <div className="text-center">
-              <p className="font-semibold">Alpa</p>
-              <p className="font-bold">{isLoading ? '-' : attendanceSummary.alpa}</p>
-            </div>
           </div>
         </div>
       </div>
       
-      {/* Attendance Table */}
+      {/* Actual Attendance Table */}
       <div className="mb-6">
         <h3 className="text-lg font-medium mb-3">Riwayat Presensi:</h3>
         <div className="overflow-x-auto">
@@ -247,8 +363,29 @@ const Presensi = () => {
                 </tr>
               ) : groupedAttendance.length > 0 ? (
                 groupedAttendance.map((item, index) => {
-                  const statusInfo = getStatusInfo(item);
+                  // Determine status based on records
+                  let status = '-';
+                  let statusClass = 'bg-gray-100 text-gray-800';
                   
+                  if (item.masuk && item.keluar) {
+                    status = 'Hadir';
+                    statusClass = 'bg-green-100 text-green-800';
+                  } else if (item.masuk) {
+                    if (item.masuk.status === 'telat') {
+                      status = 'Hadir (terlambat)';
+                      statusClass = 'bg-orange-100 text-orange-800';
+                    } else {
+                      status = 'Hadir (belum keluar)';
+                      statusClass = 'bg-yellow-100 text-yellow-800';
+                    }
+                  } else if (item.keterangan && item.keterangan.includes('izin')) {
+                    status = 'Izin';
+                    statusClass = 'bg-blue-100 text-blue-800';
+                  } else if (item.keterangan && item.keterangan.includes('sakit')) {
+                    status = 'Sakit';
+                    statusClass = 'bg-red-100 text-red-800';
+                  }
+
                   return (
                     <tr key={index} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">{index + 1}</td>
@@ -258,14 +395,14 @@ const Presensi = () => {
                           <span className={`px-2 py-1 rounded text-sm ${
                             item.masuk.status === 'telat' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'
                           }`}>
-                            {formatTime(item.masuk.waktu_presensi)}
+                            {formatAttendanceTime(item.masuk.waktu_presensi)}
                           </span>
                         ) : '-'}
                       </td>
                       <td className="py-3 px-4">
                         {item.keluar ? (
                           <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-sm">
-                            {formatTime(item.keluar.waktu_presensi)}
+                            {formatAttendanceTime(item.keluar.waktu_presensi)}
                           </span>
                         ) : '-'}
                       </td>
@@ -273,8 +410,8 @@ const Presensi = () => {
                         {item.keterangan || '-'}
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded text-sm ${statusInfo.class}`}>
-                          {statusInfo.text}
+                        <span className={`px-2 py-1 rounded text-sm ${statusClass}`}>
+                          {status}
                         </span>
                       </td>
                     </tr>
@@ -292,13 +429,202 @@ const Presensi = () => {
         </div>
       </div>
 
-      {/* Information Note */}
-      <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4">
-        <p className="font-medium">Informasi Presensi:</p>
-        <p className="text-sm mt-1">
-          Presensi dilakukan dengan memindai QR Code yang tersedia di lokasi kegiatan. 
-          Pastikan Anda melakukan presensi masuk dan keluar untuk mencatat kehadiran dengan lengkap.
+      {/* Planning Summary Card */}
+      <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-100">
+        <h3 className="text-md font-medium mb-3">Jadwal Minggu Ini:</h3>
+        <div className={`${isMobile ? 'flex flex-col space-y-3' : 'flex space-x-4'}`}>
+          <div className="bg-white p-3 rounded border border-gray-200 flex-1">
+            <p className="font-medium">{saturdayFormatted}</p>
+            <div className="flex justify-between items-center mt-2">
+              <span className="text-blue-600">Hari Pertama</span>
+              <button
+                type="button"
+                onClick={() => handleDateSelection(weekendDates.saturday.formatted, saturdayFormatted)}
+                className="bg-yellow-500 hover:bg-yellow-600 text-black text-sm py-1 px-3 rounded"
+              >
+                Pilih
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white p-3 rounded border border-gray-200 flex-1">
+            <p className="font-medium">{sundayFormatted}</p>
+            <div className="flex justify-between items-center mt-2">
+              <span className="text-blue-600">Hari Kedua</span>
+              <button
+                type="button"
+                onClick={() => handleDateSelection(weekendDates.sunday.formatted, sundayFormatted)}
+                className="bg-yellow-500 hover:bg-yellow-600 text-black text-sm py-1 px-3 rounded"
+              >
+                Pilih
+              </button>
+            </div>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 mt-3">
+          Catatan: Anda hanya dapat merencanakan kehadiran untuk akhir pekan ini (maksimal 2 hari).
         </p>
+      </div>
+
+      {/* Status Menu (only shown after date selection) */}
+      {showStatusMenu && (
+        <div id="status-menu" className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <h3 className="text-xl font-medium mb-4">
+            {editingRecord ? 'Edit Rencana Kehadiran' : 'Tambah Rencana Kehadiran'}
+            <span className="text-sm font-normal text-gray-600 ml-2">({selectedDate})</span>
+          </h3>
+
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 mb-4 rounded relative">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            <div className="mb-6">
+              {/* Status selection */}
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2">
+                  Status Kehadiran:
+                </label>
+                <div className={`${isMobile ? 'grid grid-cols-2 gap-2' : 'flex space-x-4'} justify-center`}>
+                  <button
+                    type="button"
+                    onClick={() => handleStatusClick('Hadir')}
+                    className={`py-2 px-4 rounded ${status === 'Hadir' ? 'bg-green-600 text-white font-bold' : 'bg-green-500 text-white hover:bg-green-600'}`}
+                  >
+                    Hadir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStatusClick('Sakit')}
+                    className={`py-2 px-4 rounded ${status === 'Sakit' ? 'bg-red-600 text-white font-bold' : 'bg-red-500 text-white hover:bg-red-600'}`}
+                  >
+                    Sakit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStatusClick('Izin')}
+                    className={`py-2 px-4 rounded ${status === 'Izin' ? 'bg-yellow-600 text-white font-bold' : 'bg-yellow-500 text-white hover:bg-yellow-600'}`}
+                  >
+                    Izin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleStatusClick('Telat')}
+                    className={`py-2 px-4 rounded ${status === 'Telat' ? 'bg-blue-600 text-white font-bold' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                  >
+                    Telat
+                  </button>
+                </div>
+              </div>
+
+              {/* Notes form for Sakit, Izin, Telat */}
+              {showNotesForm && (
+                <div className="mb-4">
+                  <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="notes">
+                    Keterangan {status}:
+                  </label>
+                  <textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    placeholder={`Berikan keterangan untuk ${status}...`}
+                    rows="3"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Silakan berikan detail keterangan untuk {status}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className={`${isMobile ? 'flex flex-col space-y-2' : 'flex justify-end space-x-4'}`}>
+              <button
+                type="button"
+                onClick={resetForm}
+                className={`${isMobile ? 'w-full' : ''} bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-8 rounded`}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className={`${isMobile ? 'w-full' : ''} bg-blue-900 hover:bg-blue-800 text-white font-bold py-2 px-8 rounded`}
+              >
+                {editingRecord ? 'Update' : 'Simpan'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Note about actual attendance */}
+      <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+        <p className="font-medium">Catatan Penting:</p>
+        <p className="text-sm mt-1">Presensi kehadiran yang sesungguhnya akan dilakukan secara offline dengan memindai barcode pada saat pertemuan. Rencana kehadiran ini <strong>hanya untuk prediksi</strong> dan tidak akan mempengaruhi kehadiran sebenarnya.</p>
+      </div>
+
+      {/* Attendance Table (moved to bottom) */}
+      <div id="attendance-table" className="mt-6">
+        <h3 className="text-lg font-medium mb-3">Data Rencana Kehadiran:</h3>
+        <div className="overflow-x-auto mb-6">
+          <table className="min-w-full border border-gray-200">
+            <thead>
+              <tr className="bg-yellow-500 text-black">
+                <th className="py-3 px-2 sm:px-4 border-b text-left">No</th>
+                <th className="py-3 px-2 sm:px-4 border-b text-left">Hari dan Tanggal</th>
+                <th className="py-3 px-2 sm:px-4 border-b text-left">Status</th>
+                {!isMobile && <th className="py-3 px-4 border-b text-left">Catatan</th>}
+                <th className="py-3 px-2 sm:px-4 border-b text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {attendanceRecords.length > 0 ? (
+                attendanceRecords.map((record, index) => (
+                  <tr key={record.id} className={`border-b hover:bg-gray-50 ${editingRecord?.id === record.id ? 'bg-yellow-50' : ''}`}>
+                    <td className="py-3 px-2 sm:px-4">{index + 1}</td>
+                    <td className="py-3 px-2 sm:px-4">{record.date}</td>
+                    <td className="py-3 px-2 sm:px-4">
+                      <span className={`px-2 py-1 rounded-full text-sm font-semibold 
+                        ${record.status === 'Hadir' ? 'bg-green-100 text-green-800' :
+                          record.status === 'Sakit' ? 'bg-red-100 text-red-800' :
+                            record.status === 'Izin' ? 'bg-yellow-100 text-yellow-800' :
+                              record.status === 'Telat' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'}`}
+                      >
+                        {record.status}
+                      </span>
+                    </td>
+                    {!isMobile && <td className="py-3 px-4">{record.notes || '-'}</td>}
+                    <td className="py-3 px-2 sm:px-4 text-center">
+                      <div className={`${isMobile ? 'flex flex-col space-y-1' : 'flex space-x-2 justify-center'}`}>
+                        <button
+                          className="bg-yellow-400 hover:bg-yellow-500 text-black px-3 py-1 rounded"
+                          onClick={() => handleEdit(record)}
+                        >
+                          {isMobile ? '✏️' : 'Edit'}
+                        </button>
+                        <button
+                          className="bg-red-400 hover:bg-red-500 text-white px-3 py-1 rounded"
+                          onClick={() => handleDelete(record.id)}
+                        >
+                          {isMobile ? '🗑️' : 'Hapus'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr className="border-b">
+                  <td colSpan={isMobile ? 4 : 5} className="py-6 text-center text-gray-500">
+                    Belum ada rencana kehadiran
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
