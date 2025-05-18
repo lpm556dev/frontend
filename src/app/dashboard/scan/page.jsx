@@ -37,11 +37,12 @@ export default function QrCodeScanner() {
   const [showPermissionForm, setShowPermissionForm] = useState(false);
   const [showKeteranganForm, setShowKeteranganForm] = useState(false);
   const [isOutsideValidHours, setIsOutsideValidHours] = useState(false);
+  const [scanCount, setScanCount] = useState(0);
   const [autoAttendance, setAutoAttendance] = useState(false);
   const [weekendScanStatus, setWeekendScanStatus] = useState(null);
   const [weekendScanHistory, setWeekendScanHistory] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
-  const [scannedCodesToday, setScannedCodesToday] = useState([]); // Changed from todayScans
+  const [todayScans, setTodayScans] = useState([]);
   
   // Scanner reference
   const scannerRef = useRef(null);
@@ -195,6 +196,11 @@ export default function QrCodeScanner() {
         return true;
       } else {
         setIsOutsideValidHours(true);
+        // Check if we need to set auto attendance
+        if (hours >= 16 && scanCount === 0) {
+          setAutoAttendance(true);
+          setAttendanceStatus('hadir');
+        }
         return false;
       }
     }
@@ -228,16 +234,16 @@ export default function QrCodeScanner() {
     return now.toISOString().split('T')[0];
   };
 
-  // Check if QR code has already been scanned today
-  const hasScannedCodeToday = (code) => {
+  // Check if user has already scanned today
+  const hasScannedToday = () => {
     const today = getTodayDateString();
-    return scannedCodesToday.some(scan => scan.code === code && scan.date === today);
+    return todayScans.some(scan => scan.date === today);
   };
 
-  // Check if user has completed both scans today with different QR codes
+  // Check if user has completed both scans today
   const hasCompletedTodayScans = () => {
     const today = getTodayDateString();
-    const todayScanCount = scannedCodesToday.filter(scan => scan.date === today).length;
+    const todayScanCount = todayScans.filter(scan => scan.date === today).length;
     return todayScanCount >= 2;
   };
 
@@ -274,13 +280,13 @@ export default function QrCodeScanner() {
 
       // Reset scan count if it's after Sunday 16:00
       if (now.getDay() === 0 && (now.getHours() > 16 || (now.getHours() === 16 && now.getMinutes() > 0))) {
-        setScannedCodesToday([]);
+        setScanCount(0);
         setWeekendScanStatus(null);
       }
       
       // Reset scan count if it's before Saturday 16:00
       if (now.getDay() === 6 && now.getHours() < 16) {
-        setScannedCodesToday([]);
+        setScanCount(0);
         setWeekendScanStatus(null);
       }
 
@@ -451,10 +457,10 @@ export default function QrCodeScanner() {
       setWeekendScanHistory(JSON.parse(savedHistory));
     }
 
-    // Load scanned codes today from localStorage
-    const savedScannedCodes = localStorage.getItem('scannedCodesToday');
-    if (savedScannedCodes) {
-      setScannedCodesToday(JSON.parse(savedScannedCodes));
+    // Load today's scans from localStorage
+    const savedTodayScans = localStorage.getItem('todayScans');
+    if (savedTodayScans) {
+      setTodayScans(JSON.parse(savedTodayScans));
     }
 
     // Fetch initial attendance history
@@ -482,12 +488,12 @@ export default function QrCodeScanner() {
     }
   }, [weekendScanHistory]);
 
-  // Save scanned codes today to localStorage when it changes
+  // Save today's scans to localStorage when it changes
   useEffect(() => {
-    if (scannedCodesToday.length > 0) {
-      localStorage.setItem('scannedCodesToday', JSON.stringify(scannedCodesToday));
+    if (todayScans.length > 0) {
+      localStorage.setItem('todayScans', JSON.stringify(todayScans));
     }
-  }, [scannedCodesToday]);
+  }, [todayScans]);
 
   // Handle auto attendance on Sunday after 16:00 if not scanned
   useEffect(() => {
@@ -552,43 +558,23 @@ export default function QrCodeScanner() {
       return;
     }
 
-    const now = new Date();
-    const today = getTodayDateString();
-    
-    // Cek apakah QR code ini sudah discan hari ini
-    if (hasScannedCodeToday(decodedText)) {
-      toast.error("QR code ini sudah digunakan hari ini");
-      stopScanner();
-      resetForm();
-      return;
-    }
-    
-    // Cek apakah user sudah melakukan 2 scan dengan QR code berbeda hari ini
-    if (hasCompletedTodayScans()) {
-      setScanResult({
-        success: true,
-        message: "Anda sudah melakukan scan 2 kali hari ini (dengan QR code berbeda)",
-      });
-      stopScanner();
-      return;
-    }
-    
-    // Tambahkan ke daftar scan hari ini
-    setScannedCodesToday(prev => [
-      ...prev, 
-      {
-        date: today,
-        timestamp: now.getTime(),
-        code: decodedText,
-        type: attendanceType
-      }
-    ]);
-    
     setScannedCode(decodedText);
     stopScanner();
     
-    // Check berapa kali user sudah scan hari ini (dengan QR code berbeda)
-    const todayScanCount = scannedCodesToday.filter(scan => scan.date === today).length + 1;
+    const now = new Date();
+    const today = getTodayDateString();
+    
+    // Add to today's scans
+    const newScan = {
+      date: today,
+      timestamp: now.getTime(),
+      type: attendanceType
+    };
+    
+    setTodayScans(prev => [...prev, newScan]);
+    
+    // Check if this is the first or second scan today
+    const todayScanCount = todayScans.filter(scan => scan.date === today).length + 1;
     
     if (todayScanCount === 1) {
       // First scan - set status to hadir
@@ -599,6 +585,13 @@ export default function QrCodeScanner() {
       setShowPermissionForm(true);
       setAttendanceStatus('ijin pulang');
       setAttendanceType('keluar');
+    } else {
+      // More than 2 scans - show success but don't submit
+      setScanResult({
+        success: true,
+        message: "Anda sudah melakukan scan 2 kali hari ini",
+      });
+      return;
     }
   };
 
@@ -885,15 +878,6 @@ export default function QrCodeScanner() {
     submitAttendance(scannedCode);
   };
 
-  // Handle late submission
-  const handleLateSubmit = () => {
-    if (!lateReason) {
-      toast.error('Harap masukkan alasan keterlambatan');
-      return;
-    }
-    submitAttendance(scannedCode);
-  };
-
   // Reset form to scan again
   const resetForm = () => {
     setScannedCode(null);
@@ -973,7 +957,6 @@ export default function QrCodeScanner() {
             </p>
           </div>
         )}
-        
         {/* QR Scanner Container */}
         <div id="qr-reader-container" className={scanning ? "block p-4 relative" : "hidden"}>
           <div className="mb-4 text-center">
