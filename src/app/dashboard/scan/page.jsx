@@ -948,9 +948,6 @@ export default function QrCodeScanner() {
               </h3>
               <div className={`mt-3 p-4 ${scanResult.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'} rounded-lg mx-auto max-w-sm`}>
                 <p className="text-sm">{scanResult.message}</p>
-                {keterangan && (
-                  <p className="mt-2 text-sm">Keterangan: {keterangan === 'izin' ? 'Izin' : 'Sakit'}</p>
-                )}
               </div>
             </div>
             
