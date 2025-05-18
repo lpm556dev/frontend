@@ -74,8 +74,7 @@ const DashboardContent = ({
 
     try {
       setIsLoadingPresensi(true);
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/api/users/presensi/recent?limit=5`);
+      const response = await fetch('https://api.siapguna.org/api/admin/get-presensi?limit=5');
 
       if (!response.ok) {
         throw new Error('Gagal mengambil data presensi');
@@ -83,7 +82,17 @@ const DashboardContent = ({
 
       const data = await response.json();
       if (data.success) {
-        setRecentPresensi(data.data);
+        // Format the data to match expected structure
+        const formattedData = data.data.map(item => ({
+          id: item.id,
+          user: {
+            name: item.nama_lengkap,
+            pleton: item.qrcode_text.startsWith('A') ? 'A' : 'B' // Example pleton based on QR code
+          },
+          status: item.keterangan || (item.jenis === 'masuk' ? 'Masuk' : 'Keluar'),
+          tanggal: item.waktu_presensi
+        }));
+        setRecentPresensi(formattedData);
       }
     } catch (error) {
       console.error('Error fetching recent presensi:', error);
@@ -164,7 +173,7 @@ const DashboardContent = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       ),
-      onClick: navigateToRundown,
+      onClick: () => navigateToRundown(),
       roles: ['2c', '3']
     },
     {
@@ -172,10 +181,10 @@ const DashboardContent = ({
       name: 'Kelola Tugas',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
         </svg>
       ),
-      onClick: navigateToKelolaTugas,
+      onClick: () => navigateToKelolaTugas(),
       roles: ['3', '4']
     },
     {
@@ -186,7 +195,7 @@ const DashboardContent = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18m-7 5h7M3 17h7m-7 0a2 2 0 01-2-2V7a2 2 0 012-2m0 10a2 2 0 002-2V7a2 2 0 00-2-2m0 10h18m-7-5h7M3 12h18" />
         </svg>
       ),
-      onClick: navigateToKelolaKegiatan,
+      onClick: () => navigateToKelolaKegiatan(),
       roles: ['3', '4']
     },
     {
@@ -197,7 +206,7 @@ const DashboardContent = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
         </svg>
       ),
-      onClick: navigateToTugas,
+      onClick: () => navigateToTugas(),
       roles: ['1a']
     },
     {
@@ -208,7 +217,7 @@ const DashboardContent = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
         </svg>
       ),
-      onClick: navigateToAlQuran,
+      onClick: () => navigateToAlQuran(),
       roles: ['all']
     },
     {
@@ -230,7 +239,7 @@ const DashboardContent = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
         </svg>
       ),
-      onClick: navigateToPresensi,
+      onClick: () => navigateToPresensi(),
       roles: ['1a']
     },
     {
@@ -252,7 +261,7 @@ const DashboardContent = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
         </svg>
       ),
-      onClick: navigateToMY,
+      onClick: () => navigateToMY(),
       roles: ['all']
     },
     {
@@ -263,7 +272,7 @@ const DashboardContent = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
         </svg>
       ),
-      onClick: navigateToECard,
+      onClick: () => navigateToECard(),
       roles: ['1a']
     },
     {
@@ -274,7 +283,7 @@ const DashboardContent = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
       ),
-      onClick: navigateToPeserta,
+      onClick: () => navigateToPeserta(),
       roles: ['3']
     },
     {
@@ -285,7 +294,7 @@ const DashboardContent = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
         </svg>
       ),
-      onClick: navigateToScan,
+      onClick: () => navigateToScan(),
       roles: ['2c', '3', '4']
     },
     {
@@ -297,7 +306,7 @@ const DashboardContent = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
         </svg>
       ),
-      onClick: navigateToLihatPresensi,
+      onClick: () => navigateToLihatPresensi(),
       roles: ['3', '4']
     }
   ];
@@ -357,7 +366,7 @@ const DashboardContent = ({
               <div className="mt-2 flex justify-end">
                 <button
                   className="bg-blue-900 text-white text-xs px-3 py-1 rounded-full flex items-center hover:bg-blue-800 transition-colors duration-300"
-                  onClick={navigateToTugas}
+                  onClick={() => navigateToTugas()}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -424,7 +433,7 @@ const DashboardContent = ({
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-sm">Presensi Terbaru</h3>
             <button
-              onClick={navigateToLihatPresensi}
+              onClick={() => navigateToLihatPresensi()}
               className="text-blue-600 hover:text-blue-800 text-xs font-medium flex items-center"
             >
               Lihat Semua
@@ -500,7 +509,7 @@ const DashboardContent = ({
           </div>
           <button
             className="bg-green-500 text-white px-4 py-1 rounded-lg text-sm font-medium w-full sm:w-auto hover:bg-green-600 transition-colors duration-300"
-            onClick={navigateToAlQuran}
+            onClick={() => navigateToAlQuran()}
           >
             Lanjutkan Membaca
           </button>
