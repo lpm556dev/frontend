@@ -74,7 +74,7 @@ const DashboardContent = ({
 
     try {
       setIsLoadingPresensi(true);
-      const response = await fetch('https://api.siapguna.org/api/admin/get-presensi?limit=5');
+      const response = await fetch('https://api.siapguna.org/api/admin/get-presensi?limit=5&sort=desc');
 
       if (!response.ok) {
         throw new Error('Gagal mengambil data presensi');
@@ -87,9 +87,10 @@ const DashboardContent = ({
           id: item.id,
           user: {
             name: item.nama_lengkap,
-            pleton: item.qrcode_text.startsWith('A') ? 'A' : 'B' // Example pleton based on QR code
+            pleton: item.qrcode_text.startsWith('A') ? 'A' : 'B'
           },
-          status: item.keterangan || (item.jenis === 'masuk' ? 'Masuk' : 'Keluar'),
+          status: item.status || (item.jenis === 'masuk' ? 'Masuk' : 'Keluar'),
+          keterangan: item.keterangan || '-',
           tanggal: item.waktu_presensi
         }));
         setRecentPresensi(formattedData);
@@ -440,8 +441,8 @@ const DashboardContent = ({
               {recentPresensi.map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
                   <div className="flex items-center">
-                    <div className={`w-2 h-2 rounded-full mr-3 ${item.status === 'Hadir' ? 'bg-green-500' :
-                      item.status === 'Izin' ? 'bg-yellow-500' :
+                    <div className={`w-2 h-2 rounded-full mr-3 ${item.status === 'hadir' ? 'bg-green-500' :
+                      item.status === 'izin' ? 'bg-yellow-500' :
                         'bg-red-500'
                       }`}></div>
                     <div>
@@ -450,7 +451,7 @@ const DashboardContent = ({
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-medium">{item.status}</p>
+                    <p className="text-xs font-medium capitalize">{item.status}</p>
                     <p className="text-xs text-gray-500">{formatPresensiDate(item.tanggal)}</p>
                   </div>
                 </div>
