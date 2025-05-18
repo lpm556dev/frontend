@@ -32,7 +32,19 @@ const LihatPresensiPage = () => {
 
       const data = await response.json();
       if (data.success) {
-        setPresensiData(data.data);
+        // Format data to match dashboard structure
+        const formattedData = data.data.map(item => ({
+          id: item.id,
+          user: {
+            name: item.nama_lengkap,
+            pleton: item.qrcode_text.startsWith('A') ? 'A' : 'B' // Example pleton based on QR code
+          },
+          status: item.keterangan || (item.jenis === 'masuk' ? 'Masuk' : 'Keluar'),
+          tanggal: item.waktu_presensi,
+          // Keep original data for table display
+          originalData: item
+        }));
+        setPresensiData(formattedData);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -46,7 +58,6 @@ const LihatPresensiPage = () => {
     const options = { 
       day: 'numeric', 
       month: 'short', 
-      year: 'numeric',
       hour: '2-digit', 
       minute: '2-digit',
       hour12: false
@@ -54,38 +65,35 @@ const LihatPresensiPage = () => {
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
 
-  const getStatusColor = (jenis, keterangan) => {
-    if (keterangan && keterangan.toLowerCase() === 'hadir') {
-      return 'bg-green-100 text-green-800';
-    } else if (keterangan && keterangan.toLowerCase() === 'izin') {
-      return 'bg-yellow-100 text-yellow-800';
-    } else if (jenis === 'masuk') {
-      return 'bg-blue-100 text-blue-800';
-    } else if (jenis === 'keluar') {
-      return 'bg-purple-100 text-purple-800';
+  const getStatusColor = (status) => {
+    switch(status.toLowerCase()) {
+      case 'hadir':
+        return 'bg-green-100 text-green-800';
+      case 'izin':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'masuk':
+        return 'bg-blue-100 text-blue-800';
+      case 'keluar':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
-    return 'bg-gray-100 text-gray-800';
-  };
-
-  const getStatusText = (jenis, keterangan) => {
-    if (keterangan) return keterangan;
-    return jenis === 'masuk' ? 'Masuk' : 'Keluar';
   };
 
   // Filter data based on filter inputs
   const filteredData = presensiData.filter(item => {
     const matchesDate = filterDate ? 
-      new Date(item.waktu_presensi).toISOString().split('T')[0] === filterDate : 
+      new Date(item.tanggal).toISOString().split('T')[0] === filterDate : 
       true;
     const matchesName = filterName ? 
-      item.nama_lengkap.toLowerCase().includes(filterName.toLowerCase()) : 
+      item.user.name.toLowerCase().includes(filterName.toLowerCase()) : 
       true;
     return matchesDate && matchesName;
   });
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900 mx-auto"></div>
           <p className="mt-4">Memuat data presensi...</p>
@@ -135,27 +143,27 @@ const LihatPresensiPage = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Lengkap</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID QR Code</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Peserta</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pleton</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu Presensi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredData.length > 0 ? (
                   filteredData.map((item, index) => (
-                    <tr key={item.id}>
+                    <tr key={item.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{index + 1}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium">{item.nama_lengkap || '-'}</div>
+                        <div className="text-sm font-medium">{item.user.name || '-'}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{item.qrcode_text || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{item.user.pleton || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(item.jenis, item.keterangan)}`}>
-                          {getStatusText(item.jenis, item.keterangan)}
+                        <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(item.status)}`}>
+                          {item.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDate(item.waktu_presensi)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDate(item.tanggal)}</td>
                     </tr>
                   ))
                 ) : (
