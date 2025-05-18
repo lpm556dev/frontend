@@ -5,7 +5,7 @@ import { Html5QrcodeScanner } from 'html5-qrcode';
 import { Camera, CheckCircle, XCircle, RefreshCw, Clock, Calendar, AlertCircle } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = "https://api.siapguna.org/api";
 
 // Define Hijri month names
 const HIJRI_MONTHS = [
@@ -29,6 +29,7 @@ export default function QrCodeScanner() {
     hijriYear: 0
   });
   const [attendanceStatus, setAttendanceStatus] = useState('hadir');
+  const [attendanceType, setAttendanceType] = useState('masuk'); // 'masuk' or 'keluar'
   const [lateReason, setLateReason] = useState('');
   const [permissionReason, setPermissionReason] = useState('');
   const [keterangan, setKeterangan] = useState(null);
@@ -40,6 +41,7 @@ export default function QrCodeScanner() {
   const [autoAttendance, setAutoAttendance] = useState(false);
   const [weekendScanStatus, setWeekendScanStatus] = useState(null);
   const [weekendScanHistory, setWeekendScanHistory] = useState([]);
+  const [attendanceHistory, setAttendanceHistory] = useState([]);
   
   // Scanner reference
   const scannerRef = useRef(null);
@@ -283,6 +285,13 @@ export default function QrCodeScanner() {
         setScanCount(0);
         setWeekendScanStatus(null);
       }
+
+      // Determine attendance type based on time
+      if (now.getHours() < 12) {
+        setAttendanceType('masuk');
+      } else {
+        setAttendanceType('keluar');
+      }
     };
 
     // Update immediately and then every second
@@ -471,10 +480,13 @@ export default function QrCodeScanner() {
     if (autoAttendance) {
       const submitAutoAttendance = async () => {
         try {
+          const now = new Date();
           const payload = {
             qrcode_text: 'AUTO_ATTENDANCE',
+            jenis: attendanceType,
+            keterangan: 'izin',
             status: 'hadir',
-            keterangan: 'izin'
+            waktu_presensi: now.toISOString()
           };
 
           const response = await fetch(`${API_URL}/users/presensi`, {
@@ -837,14 +849,27 @@ export default function QrCodeScanner() {
     setScanResult(null);
 
     try {
+      const now = new Date();
+      let keteranganText = '';
+
+      if (attendanceStatus === 'terlambat') {
+        keteranganText = `terlambat: ${lateReason}`;
+      } else if (attendanceStatus === 'ijin pulang') {
+        keteranganText = `ijin pulang: ${permissionReason}`;
+      } else if (keterangan) {
+        keteranganText = keterangan === 'izin' ? 'izin' : 'sakit';
+      } else if (attendanceType === 'masuk') {
+        keteranganText = 'hadir tepat waktu';
+      } else {
+        keteranganText = 'pulang setelah kegiatan';
+      }
+
       const payload = {
         qrcode_text: qrcodeText,
+        jenis: attendanceType,
+        keterangan: keteranganText,
         status: attendanceStatus,
-        keterangan: keterangan,
-        ...(lateReason && { late_reason: lateReason }),
-        ...(permissionReason && { permission_reason: permissionReason }),
-        scan_count: scanCount,
-        weekend_scan_status: weekendScanStatus
+        waktu_presensi: now.toISOString()
       };
 
       const response = await fetch(`${API_URL}/users/presensi`, {
@@ -866,6 +891,9 @@ export default function QrCodeScanner() {
           permissionReason: permissionReason
         });
         toast.success(`${data.message}`);
+        
+        // Fetch updated attendance history after successful submission
+        fetchAttendanceHistory();
       } else {
         setScanResult({
           success: false,
@@ -882,6 +910,24 @@ export default function QrCodeScanner() {
       toast.error(`Error: ${error.message}`);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Fetch attendance history from server
+  const fetchAttendanceHistory = async () => {
+    try {
+      // In a real app, you would get the user_id from authentication
+      const user_id = 20; // Example user ID
+      const response = await fetch(`${API_URL}/users/get-presensi?user_id=${user_id}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAttendanceHistory(data.data || []);
+      } else {
+        console.error('Failed to fetch attendance history');
+      }
+    } catch (error) {
+      console.error('Error fetching attendance history:', error);
     }
   };
 
