@@ -5,7 +5,10 @@ import useAuthStore from '../../../stores/authStore';
 import DashboardHeader from '../../../components/DashboardHeader';
 
 const LihatPresensiPage = () => {
-  const { role, user } = useAuthStore();
+  const { role, user } = useAuthStore((state) => ({
+    role: state.role,
+    user: state.user
+  }));
   const router = useRouter();
   const [presensiData, setPresensiData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,6 +16,9 @@ const LihatPresensiPage = () => {
   const [filterName, setFilterName] = useState('');
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+
     if (role !== '3' && role !== '4') {
       router.push('/dashboard');
       return;
@@ -37,7 +43,7 @@ const LihatPresensiPage = () => {
           id: item.id,
           user: {
             name: item.nama_lengkap,
-            pleton: item.qrcode_text.startsWith('A') ? 'A' : 'B' // Example pleton based on QR code
+            pleton: item.qrcode_text?.startsWith('A') ? 'A' : 'B' // Example pleton based on QR code
           },
           status: item.keterangan || (item.jenis === 'masuk' ? 'Masuk' : 'Keluar'),
           tanggal: item.waktu_presensi,
@@ -66,6 +72,8 @@ const LihatPresensiPage = () => {
   };
 
   const getStatusColor = (status) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    
     switch(status.toLowerCase()) {
       case 'hadir':
         return 'bg-green-100 text-green-800';
