@@ -137,10 +137,10 @@ const MySwal = withReactContent(Swal);
         completionRate: 70,
         notifications: 3,
         quranProgress: {
-          juz: 5,
-          surah: 'Al-Baqarah',
-          page: 21,
-          lastRead: '15 Maret 2025',
+          juz: 0,
+          surah: '-',
+          page: 0,
+          lastRead: '0',
         }
       });
       
