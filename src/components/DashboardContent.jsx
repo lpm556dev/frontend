@@ -7,13 +7,13 @@ const DashboardContent = ({
   navigateToRundown,
   navigateToKelolaTugas,
   navigateToKelolaKegiatan,
+  navigateToLihatPresensi,
   navigateToPresensi,
   navigateToTugas,
   navigateToAlQuran,
   navigateToECard,
   navigateToPeserta,
   navigateToScan,
-  navigateToLihatPresensi,
   navigateToProfile,
 }) => {
   const { role, user } = useAuthStore();
