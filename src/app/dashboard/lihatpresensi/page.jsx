@@ -31,19 +31,20 @@ const LihatPresensiPage = () => {
       }
 
       const data = await response.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.data)) {
         setPresensiData(data.data.map(item => ({
-          id: item.id,
+          id: item.id || '',
           user: {
-            name: item.nama_lengkap,
+            name: item.nama_lengkap || 'Nama tidak tersedia',
             pleton: item.qrcode_text?.startsWith('A') ? 'A' : 'B'
           },
           status: item.keterangan || (item.jenis === 'masuk' ? 'Masuk' : 'Keluar'),
-          tanggal: item.waktu_presensi
+          tanggal: item.waktu_presensi || ''
         })));
       }
     } catch (error) {
       console.error('Error:', error);
+      setPresensiData([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -51,18 +52,23 @@ const LihatPresensiPage = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch {
+      return '-';
+    }
   };
 
   const getStatusColor = (status) => {
-    const statusLower = status?.toLowerCase();
+    if (!status) return 'bg-gray-100 text-gray-800';
+    const statusLower = status.toLowerCase();
     if (statusLower === 'hadir') return 'bg-green-100 text-green-800';
     if (statusLower === 'izin') return 'bg-yellow-100 text-yellow-800';
     if (statusLower === 'masuk') return 'bg-blue-100 text-blue-800';
@@ -72,10 +78,10 @@ const LihatPresensiPage = () => {
 
   const filteredData = presensiData.filter(item => {
     const dateMatch = filterDate 
-      ? new Date(item.tanggal).toISOString().split('T')[0] === filterDate 
+      ? item.tanggal && new Date(item.tanggal).toISOString().split('T')[0] === filterDate 
       : true;
     const nameMatch = filterName 
-      ? item.user.name.toLowerCase().includes(filterName.toLowerCase())
+      ? item.user?.name?.toLowerCase().includes(filterName.toLowerCase())
       : true;
     return dateMatch && nameMatch;
   });
@@ -139,15 +145,15 @@ const LihatPresensiPage = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredData.length > 0 ? (
                   filteredData.map((item, index) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
+                    <tr key={item.id || index} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{index + 1}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium">{item.user.name || '-'}</div>
+                        <div className="text-sm font-medium">{item.user?.name || '-'}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{item.user.pleton || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{item.user?.pleton || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(item.status)}`}>
-                          {item.status}
+                          {item.status || '-'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDate(item.tanggal)}</td>
@@ -156,7 +162,7 @@ const LihatPresensiPage = () => {
                 ) : (
                   <tr>
                     <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
-                      Tidak ada data presensi yang ditemukan
+                      {presensiData.length === 0 ? 'Tidak ada data presensi' : 'Data tidak ditemukan dengan filter yang diberikan'}
                     </td>
                   </tr>
                 )}
