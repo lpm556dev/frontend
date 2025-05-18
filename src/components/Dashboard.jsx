@@ -15,7 +15,6 @@ const Dashboard = ({
   navigateToRundown,
   navigateToProfile,
   navigateToPresensi,
-  navigateToLihatPresensi,
   navigateToAlQuran,
   navigateToTugas,
   navigateToHome,
@@ -90,7 +89,6 @@ const Dashboard = ({
         navigateToRundown={navigateToRundown}
         navigateToAlQuran={navigateToAlQuran}
         navigateToPresensi={navigateToPresensi}
-        navigateToLihatPresensi={navigateToLihatPresensi}
         navigateToTugas={navigateToTugas}
         navigateToProfile={navigateToProfile}
         navigateToScan={navigateToScan}
@@ -118,7 +116,6 @@ const Dashboard = ({
           navigateToKelolaTugas={navigateToKelolaTugas}
           navigateToRundown={navigateToRundown}
           navigateToPresensi={navigateToPresensi}
-          navigateToLihatPresensi={navigateToLihatPresensi}
           navigateToTugas={navigateToTugas}
           navigateToAlQuran={navigateToAlQuran}
           navigateToProfile={navigateToProfile}
