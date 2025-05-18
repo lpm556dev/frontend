@@ -1212,43 +1212,6 @@ export default function QrCodeScanner() {
         )}
       </div>
 
-      {/* Attendance History */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <h3 className="font-medium text-gray-700">Riwayat Presensi</h3>
-        </div>
-        <div className="divide-y divide-gray-200">
-          {attendanceHistory.length > 0 ? (
-            attendanceHistory.map((record, index) => (
-              <div key={index} className="p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium text-gray-800">
-                      {record.jenis === 'masuk' ? 'Masuk' : record.jenis === 'keluar' ? 'Keluar' : 'Izin'}
-                    </p>
-                    <p className="text-sm text-gray-500">{new Date(record.waktu_presensi).toLocaleString()}</p>
-                  </div>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    record.status === 'hadir' ? 'bg-green-100 text-green-800' :
-                    record.status === 'terlambat' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-blue-100 text-blue-800'
-                  }`}>
-                    {record.status}
-                  </span>
-                </div>
-                {record.keterangan && (
-                  <p className="mt-2 text-sm text-gray-600">{record.keterangan}</p>
-                )}
-              </div>
-            ))
-          ) : (
-            <div className="p-4 text-center text-gray-500">
-              Belum ada riwayat presensi
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Instructions */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-xl border border-blue-100">
         <h3 className="font-medium text-blue-800 mb-3 flex items-center text-lg">
