@@ -24,8 +24,7 @@ const LihatPresensiPage = () => {
   const fetchPresensiData = async () => {
     try {
       setLoading(true);
-      const API_URL = process.env.NEXT_PUBLIC_API_URL;
-      const response = await fetch(`${API_URL}/api/users/presensi`);
+      const response = await fetch('https://api.siapguna.org/api/admin/get-presensi');
       
       if (!response.ok) {
         throw new Error('Gagal mengambil data presensi');
@@ -47,12 +46,42 @@ const LihatPresensiPage = () => {
     const options = { 
       day: 'numeric', 
       month: 'short', 
+      year: 'numeric',
       hour: '2-digit', 
       minute: '2-digit',
       hour12: false
     };
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
+
+  const getStatusColor = (jenis, keterangan) => {
+    if (keterangan && keterangan.toLowerCase() === 'hadir') {
+      return 'bg-green-100 text-green-800';
+    } else if (keterangan && keterangan.toLowerCase() === 'izin') {
+      return 'bg-yellow-100 text-yellow-800';
+    } else if (jenis === 'masuk') {
+      return 'bg-blue-100 text-blue-800';
+    } else if (jenis === 'keluar') {
+      return 'bg-purple-100 text-purple-800';
+    }
+    return 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusText = (jenis, keterangan) => {
+    if (keterangan) return keterangan;
+    return jenis === 'masuk' ? 'Masuk' : 'Keluar';
+  };
+
+  // Filter data based on filter inputs
+  const filteredData = presensiData.filter(item => {
+    const matchesDate = filterDate ? 
+      new Date(item.waktu_presensi).toISOString().split('T')[0] === filterDate : 
+      true;
+    const matchesName = filterName ? 
+      item.nama_lengkap.toLowerCase().includes(filterName.toLowerCase()) : 
+      true;
+    return matchesDate && matchesName;
+  });
 
   if (loading) {
     return (
@@ -106,32 +135,36 @@ const LihatPresensiPage = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Peserta</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pleton</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Lengkap</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID QR Code</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Waktu Presensi</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {presensiData.map((item, index) => (
-                  <tr key={item.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{index + 1}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium">{item.user?.name || '-'}</div>
+                {filteredData.length > 0 ? (
+                  filteredData.map((item, index) => (
+                    <tr key={item.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{index + 1}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium">{item.nama_lengkap || '-'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{item.qrcode_text || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(item.jenis, item.keterangan)}`}>
+                          {getStatusText(item.jenis, item.keterangan)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDate(item.waktu_presensi)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
+                      Tidak ada data presensi yang ditemukan
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{item.user?.pleton || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        item.status === 'Hadir' ? 'bg-green-100 text-green-800' :
-                        item.status === 'Izin' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{formatDate(item.tanggal)}</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
