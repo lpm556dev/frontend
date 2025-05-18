@@ -427,6 +427,55 @@ const DashboardContent = ({
         )}
       </section>
 
+      {/* Presensi Terbaru Section */}
+      {(role === '3' || role === '4') && (
+        <section className="bg-white rounded-lg shadow-sm mb-4 p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-sm">Presensi Terbaru</h3>
+            <button
+              onClick={() => navigateToSeePresensi()}
+              className="text-blue-600 hover:text-blue-800 text-xs font-medium flex items-center"
+            >
+              Lihat Semua
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+
+          {isLoadingPresensi ? (
+            <div className="flex justify-center items-center p-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-700"></div>
+            </div>
+          ) : recentPresensi.length > 0 ? (
+            <div className="space-y-3">
+              {recentPresensi.slice(0, 2).map((item) => (
+                <div key={item.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                  <div className="flex items-center">
+                    <div className={`w-2 h-2 rounded-full mr-3 ${item.status === 'hadir' ? 'bg-green-500' :
+                      item.status === 'izin' ? 'bg-yellow-500' :
+                        'bg-red-500'
+                      }`}></div>
+                    <div>
+                      <p className="text-sm font-medium">{item.user.name}</p>
+                      <p className="text-xs text-gray-500">{item.user.pleton || '-'}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-medium capitalize">{item.status}</p>
+                    <p className="text-xs text-gray-500">{formatPresensiDate(item.tanggal)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-sm text-gray-500">Belum ada data presensi</p>
+            </div>
+          )}
+        </section>
+      )}
+
       {/* Quick Access - Responsive grid */}
       <section className="bg-white rounded-lg shadow-sm mb-4 p-4">
         <h3 className="font-medium text-sm mb-4">Akses Cepat</h3>
