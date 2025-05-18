@@ -29,7 +29,7 @@ export default function QrCodeScanner() {
     hijriYear: 0
   });
   const [attendanceStatus, setAttendanceStatus] = useState('hadir');
-  const [attendanceType, setAttendanceType] = useState('masuk'); // 'masuk' or 'keluar'
+  const [attendanceType, setAttendanceType] = useState('masuk');
   const [lateReason, setLateReason] = useState('');
   const [permissionReason, setPermissionReason] = useState('');
   const [keterangan, setKeterangan] = useState(null);
@@ -453,6 +453,9 @@ export default function QrCodeScanner() {
       setWeekendScanHistory(JSON.parse(savedHistory));
     }
 
+    // Fetch initial attendance history
+    fetchAttendanceHistory();
+
     // Clean up scanner and clock interval on component unmount
     return () => {
       clearInterval(clockInterval);
@@ -483,8 +486,8 @@ export default function QrCodeScanner() {
           const now = new Date();
           const payload = {
             qrcode_text: 'AUTO_ATTENDANCE',
-            jenis: attendanceType,
-            keterangan: 'izin',
+            jenis: 'keluar', // Default to 'keluar' for auto attendance
+            keterangan: 'presensi otomatis',
             status: 'hadir',
             waktu_presensi: now.toISOString()
           };
@@ -505,6 +508,7 @@ export default function QrCodeScanner() {
               message: "Presensi otomatis berhasil dicatat",
             });
             toast.success("Presensi otomatis berhasil dicatat");
+            fetchAttendanceHistory();
           } else {
             setScanResult({
               success: false,
@@ -851,13 +855,16 @@ export default function QrCodeScanner() {
     try {
       const now = new Date();
       let keteranganText = '';
+      let jenis = attendanceType;
 
-      if (attendanceStatus === 'terlambat') {
+      // Determine jenis and keterangan based on different conditions
+      if (keterangan === 'izin' || keterangan === 'sakit') {
+        jenis = 'izin';
+        keteranganText = `izin karena ${keterangan}`;
+      } else if (attendanceStatus === 'terlambat') {
         keteranganText = `terlambat: ${lateReason}`;
       } else if (attendanceStatus === 'ijin pulang') {
         keteranganText = `ijin pulang: ${permissionReason}`;
-      } else if (keterangan) {
-        keteranganText = keterangan === 'izin' ? 'izin' : 'sakit';
       } else if (attendanceType === 'masuk') {
         keteranganText = 'hadir tepat waktu';
       } else {
@@ -866,7 +873,7 @@ export default function QrCodeScanner() {
 
       const payload = {
         qrcode_text: qrcodeText,
-        jenis: attendanceType,
+        jenis: jenis,
         keterangan: keteranganText,
         status: attendanceStatus,
         waktu_presensi: now.toISOString()
@@ -1112,7 +1119,7 @@ export default function QrCodeScanner() {
               
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <button
-                  onClick={() => setKeterangan('Izin')}
+                  onClick={() => setKeterangan('izin')}
                   className={`py-3 rounded-lg border ${keterangan === 'izin' ? 
                     'bg-blue-100 border-blue-500 text-blue-700' : 
                     'bg-gray-50 border-gray-300 text-gray-700'}`}
@@ -1146,6 +1153,7 @@ export default function QrCodeScanner() {
                       toast.error('Harap pilih keterangan');
                       return;
                     }
+                    submitAttendance(scannedCode);
                   }}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg"
                 >
@@ -1280,6 +1288,43 @@ export default function QrCodeScanner() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Attendance History */}
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <h3 className="font-medium text-gray-700">Riwayat Presensi</h3>
+        </div>
+        <div className="divide-y divide-gray-200">
+          {attendanceHistory.length > 0 ? (
+            attendanceHistory.map((record, index) => (
+              <div key={index} className="p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-medium text-gray-800">
+                      {record.jenis === 'masuk' ? 'Masuk' : record.jenis === 'keluar' ? 'Keluar' : 'Izin'}
+                    </p>
+                    <p className="text-sm text-gray-500">{new Date(record.waktu_presensi).toLocaleString()}</p>
+                  </div>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    record.status === 'hadir' ? 'bg-green-100 text-green-800' :
+                    record.status === 'terlambat' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {record.status}
+                  </span>
+                </div>
+                {record.keterangan && (
+                  <p className="mt-2 text-sm text-gray-600">{record.keterangan}</p>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              Belum ada riwayat presensi
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Instructions */}
