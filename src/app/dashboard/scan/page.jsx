@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -168,33 +167,11 @@ export default function QrCodeScanner() {
     const minutes = now.getMinutes();
     const dayOfWeek = now.getDay();
 
-    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-      setIsOutsideValidHours(true);
-      return false;
-    }
-
-    if (dayOfWeek === 6) {
-      if (hours >= 16) {
-        setIsOutsideValidHours(false);
-        return true;
-      } else {
-        setIsOutsideValidHours(true);
-        return false;
-      }
-    }
-
-    if (dayOfWeek === 0) {
-      if (hours < 16 || (hours === 16 && minutes === 0)) {
-        setIsOutsideValidHours(false);
-        return true;
-      } else {
-        setIsOutsideValidHours(true);
-        if (hours >= 16 && scanCount === 0) {
-          setAutoAttendance(true);
-          setAttendanceStatus('hadir');
-        }
-        return false;
-      }
+    // Saturday (6) after 16:00 or Sunday (0) before 16:00
+    if ((dayOfWeek === 6 && (hours >= 16)) || 
+        (dayOfWeek === 0 && (hours < 16 || (hours === 16 && minutes === 0)))) {
+      setIsOutsideValidHours(false);
+      return true;
     }
 
     setIsOutsideValidHours(true);
@@ -885,7 +862,7 @@ export default function QrCodeScanner() {
             </button>
             <p className="mt-3 text-sm text-gray-500">
               {isOutsideValidHours 
-                ? "Scan hanya tersedia pada waktu yang ditentukan" 
+                ? "Scan hanya tersedia pada Sabtu pukul 16.00 hingga Ahad pukul 16.00" 
                 : "Klik tombol di atas untuk membuka kamera"}
             </p>
           </div>
