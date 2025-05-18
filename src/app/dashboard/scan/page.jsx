@@ -585,13 +585,6 @@ export default function QrCodeScanner() {
       setShowPermissionForm(true);
       setAttendanceStatus('ijin pulang');
       setAttendanceType('keluar');
-    } else {
-      // More than 2 scans - show success but don't submit
-      setScanResult({
-        success: true,
-        message: "Anda sudah melakukan scan 2 kali hari ini",
-      });
-      return;
     }
   };
 
