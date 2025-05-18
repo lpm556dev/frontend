@@ -242,7 +242,7 @@ const DashboardContent = ({
         </svg>
       ),
       onClick: null,
-      roles: ['1a' , '1b', '2c', '3','4']
+      roles: ['1a', '2c', '3', '4']
     },
     {
       id: 'my',

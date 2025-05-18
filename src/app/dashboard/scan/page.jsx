@@ -39,6 +39,7 @@ export default function QrCodeScanner() {
   const [scanCount, setScanCount] = useState(0);
   const [autoAttendance, setAutoAttendance] = useState(false);
   const [weekendScanStatus, setWeekendScanStatus] = useState(null);
+  const [weekendScanHistory, setWeekendScanHistory] = useState([]);
   
   // Scanner reference
   const scannerRef = useRef(null);
@@ -228,6 +229,16 @@ export default function QrCodeScanner() {
     // Default case (shouldn't happen)
     setIsOutsideValidHours(true);
     return false;
+  };
+
+  // Check if user has already scanned twice on Saturday
+  const hasCompletedSaturdayScans = () => {
+    if (!isSunday()) return false;
+    
+    // Check if there are any scan records from Saturday with status 'ijin pulang'
+    return weekendScanHistory.some(scan => 
+      scan.day === 6 && scan.status === 'ijin pulang'
+    );
   };
 
   // ===== Effects =====
@@ -427,6 +438,12 @@ export default function QrCodeScanner() {
     `;
     document.head.appendChild(style);
 
+    // Load weekend scan history from localStorage
+    const savedHistory = localStorage.getItem('weekendScanHistory');
+    if (savedHistory) {
+      setWeekendScanHistory(JSON.parse(savedHistory));
+    }
+
     // Clean up scanner and clock interval on component unmount
     return () => {
       clearInterval(clockInterval);
@@ -441,6 +458,13 @@ export default function QrCodeScanner() {
       document.head.removeChild(style);
     };
   }, []);
+
+  // Save weekend scan history to localStorage when it changes
+  useEffect(() => {
+    if (weekendScanHistory.length > 0) {
+      localStorage.setItem('weekendScanHistory', JSON.stringify(weekendScanHistory));
+    }
+  }, [weekendScanHistory]);
 
   // Handle auto attendance on Sunday after 16:00 if not scanned
   useEffect(() => {
@@ -514,23 +538,108 @@ export default function QrCodeScanner() {
       const newScanCount = scanCount + 1;
       setScanCount(newScanCount);
       
-      if (newScanCount === 1) {
-        // First scan - ijin terlambat (masuk)
-        setShowLateForm(true);
-        setAttendanceStatus('terlambat');
-        setWeekendScanStatus('terlambat');
-      } else if (newScanCount === 2) {
-        // Second scan - ijin pulang (keluar)
-        setShowPermissionForm(true);
-        setAttendanceStatus('ijin pulang');
-        setWeekendScanStatus('ijin pulang');
-      } else {
-        // More than 2 scans - show success but don't submit
-        setScanResult({
-          success: true,
-          message: "Anda sudah melakukan scan 2 kali pada periode ini",
-        });
-        return;
+      // Check if user has already completed Saturday scans
+      const completedSaturday = hasCompletedSaturdayScans();
+      
+      if (dayOfWeek === 6) {
+        // Saturday scanning
+        if (newScanCount === 1) {
+          // First scan - ijin terlambat (masuk)
+          setShowLateForm(true);
+          setAttendanceStatus('terlambat');
+          setWeekendScanStatus('terlambat');
+          
+          // Record the scan in history
+          setWeekendScanHistory(prev => [
+            ...prev,
+            { day: 6, status: 'terlambat', timestamp: now.getTime() }
+          ]);
+        } else if (newScanCount === 2) {
+          // Second scan - ijin pulang (keluar)
+          setShowPermissionForm(true);
+          setAttendanceStatus('ijin pulang');
+          setWeekendScanStatus('ijin pulang');
+          
+          // Record the scan in history
+          setWeekendScanHistory(prev => [
+            ...prev,
+            { day: 6, status: 'ijin pulang', timestamp: now.getTime() }
+          ]);
+        } else {
+          // More than 2 scans - show success but don't submit
+          setScanResult({
+            success: true,
+            message: "Anda sudah melakukan scan 2 kali pada periode ini",
+          });
+          return;
+        }
+      } else if (dayOfWeek === 0) {
+        // Sunday scanning
+        if (completedSaturday) {
+          // If user completed scans on Saturday, reset for Sunday
+          if (newScanCount === 1) {
+            // First scan - ijin terlambat (masuk)
+            setShowLateForm(true);
+            setAttendanceStatus('terlambat');
+            setWeekendScanStatus('terlambat');
+            
+            // Record the scan in history
+            setWeekendScanHistory(prev => [
+              ...prev,
+              { day: 0, status: 'terlambat', timestamp: now.getTime() }
+            ]);
+          } else if (newScanCount === 2) {
+            // Second scan - ijin pulang (keluar)
+            setShowPermissionForm(true);
+            setAttendanceStatus('ijin pulang');
+            setWeekendScanStatus('ijin pulang');
+            
+            // Record the scan in history
+            setWeekendScanHistory(prev => [
+              ...prev,
+              { day: 0, status: 'ijin pulang', timestamp: now.getTime() }
+            ]);
+          } else {
+            // More than 2 scans - show success but don't submit
+            setScanResult({
+              success: true,
+              message: "Anda sudah melakukan scan 2 kali pada periode ini",
+            });
+            return;
+          }
+        } else {
+          // If user didn't complete scans on Saturday, treat as new session
+          if (newScanCount === 1) {
+            // First scan - ijin terlambat (masuk)
+            setShowLateForm(true);
+            setAttendanceStatus('terlambat');
+            setWeekendScanStatus('terlambat');
+            
+            // Record the scan in history
+            setWeekendScanHistory(prev => [
+              ...prev,
+              { day: 0, status: 'terlambat', timestamp: now.getTime() }
+            ]);
+          } else if (newScanCount === 2) {
+            // Second scan - ijin pulang (keluar)
+            setShowPermissionForm(true);
+            setAttendanceStatus('ijin pulang');
+            setWeekendScanStatus('ijin pulang');
+            
+            // Record the scan in history
+            setWeekendScanHistory(prev => [
+              ...prev,
+              { day: 0, status: 'ijin pulang', timestamp: now.getTime() }
+            ]);
+          } else {
+            // More than 2 scans - show success but don't submit
+            setScanResult({
+              success: true,
+              message: "Anda sudah melakukan scan 2 kali pada periode ini",
+            });
+            return;
+          }
+        }
       }
     } 
     // Default case (shouldn't happen if checks are correct)
