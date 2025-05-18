@@ -45,14 +45,18 @@ const Presensi = () => {
         setIsLoading(true);
         if (!user?.id) return;
         
-        const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.id}`);
+        const response = await fetch(`http://api.siapguna.org/api/users/presensi?user_id=${user.id}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch attendance data');
+        }
+        
         const data = await response.json();
         
-        if (data.success) {
-          setActualAttendance(data.data);
-          calculateAttendanceSummary(data.data);
+        if (Array.isArray(data)) {
+          setActualAttendance(data);
+          calculateAttendanceSummary(data);
         } else {
-          console.error('Failed to fetch attendance data:', data.message);
+          console.error('Invalid data format received from API');
         }
       } catch (error) {
         console.error('Error fetching attendance data:', error);
@@ -228,7 +232,7 @@ const Presensi = () => {
   };
 
   // Handle form submit
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!status) {
@@ -243,26 +247,48 @@ const Presensi = () => {
     
     setError('');
     
-    if (editingRecord) {
-      // Update existing record
-      const updatedRecords = attendanceRecords.map(record =>
-        record.id === editingRecord.id ? { ...record, status, notes } : record
-      );
-      setAttendanceRecords(updatedRecords);
-      setSuccessMessage('Rencana kehadiran berhasil diperbarui');
-    } else {
-      // Add new record
-      const newRecord = {
-        id: Date.now(),
-        date: selectedDate,
-        status,
-        notes
-      };
-      setAttendanceRecords([...attendanceRecords, newRecord]);
-      setSuccessMessage('Rencana kehadiran berhasil ditambahkan');
+    try {
+      setIsLoading(true);
+      const response = await fetch('http://api.siapguna.org/api/users/presensi', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          jenis: status === 'Hadir' ? 'masuk' : 'izin',
+          keterangan: notes,
+          status: status.toLowerCase(),
+          waktu_presensi: new Date(date).toISOString()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit attendance');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Refresh attendance data
+        const fetchResponse = await fetch(`http://api.siapguna.org/api/users/presensi?user_id=${user.id}`);
+        const updatedData = await fetchResponse.json();
+        
+        if (Array.isArray(updatedData)) {
+          setActualAttendance(updatedData);
+          calculateAttendanceSummary(updatedData);
+          setSuccessMessage('Presensi berhasil disimpan');
+        }
+      } else {
+        setError(result.message || 'Gagal menyimpan presensi');
+      }
+    } catch (error) {
+      console.error('Error submitting attendance:', error);
+      setError('Terjadi kesalahan saat menyimpan presensi');
+    } finally {
+      setIsLoading(false);
+      resetForm();
     }
-    
-    resetForm();
   };
 
   // Handle edit
@@ -284,10 +310,37 @@ const Presensi = () => {
   };
 
   // Handle delete
-  const handleDelete = (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus rencana kehadiran ini?')) {
-      setAttendanceRecords(attendanceRecords.filter(record => record.id !== id));
-      setSuccessMessage('Rencana kehadiran berhasil dihapus');
+  const handleDelete = async (id) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus presensi ini?')) {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`http://api.siapguna.org/api/users/presensi/${id}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete attendance');
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+          // Refresh attendance data
+          const fetchResponse = await fetch(`http://api.siapguna.org/api/users/presensi?user_id=${user.id}`);
+          const updatedData = await fetchResponse.json();
+          
+          if (Array.isArray(updatedData)) {
+            setActualAttendance(updatedData);
+            calculateAttendanceSummary(updatedData);
+            setSuccessMessage('Presensi berhasil dihapus');
+          }
+        }
+      } catch (error) {
+        console.error('Error deleting attendance:', error);
+        setError('Gagal menghapus presensi');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -470,7 +523,7 @@ const Presensi = () => {
       {showStatusMenu && (
         <div id="status-menu" className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <h3 className="text-xl font-medium mb-4">
-            {editingRecord ? 'Edit Rencana Kehadiran' : 'Tambah Rencana Kehadiran'}
+            {editingRecord ? 'Edit Presensi' : 'Tambah Presensi'}
             <span className="text-sm font-normal text-gray-600 ml-2">({selectedDate})</span>
           </h3>
 
@@ -550,9 +603,10 @@ const Presensi = () => {
               </button>
               <button
                 type="submit"
-                className={`${isMobile ? 'w-full' : ''} bg-blue-900 hover:bg-blue-800 text-white font-bold py-2 px-8 rounded`}
+                disabled={isLoading}
+                className={`${isMobile ? 'w-full' : ''} bg-blue-900 hover:bg-blue-800 text-white font-bold py-2 px-8 rounded ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {editingRecord ? 'Update' : 'Simpan'}
+                {isLoading ? 'Menyimpan...' : (editingRecord ? 'Update' : 'Simpan')}
               </button>
             </div>
           </form>
@@ -563,68 +617,6 @@ const Presensi = () => {
       <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
         <p className="font-medium">Catatan Penting:</p>
         <p className="text-sm mt-1">Presensi kehadiran yang sesungguhnya akan dilakukan secara offline dengan memindai barcode pada saat pertemuan. Rencana kehadiran ini <strong>hanya untuk prediksi</strong> dan tidak akan mempengaruhi kehadiran sebenarnya.</p>
-      </div>
-
-      {/* Attendance Table (moved to bottom) */}
-      <div id="attendance-table" className="mt-6">
-        <h3 className="text-lg font-medium mb-3">Data Rencana Kehadiran:</h3>
-        <div className="overflow-x-auto mb-6">
-          <table className="min-w-full border border-gray-200">
-            <thead>
-              <tr className="bg-yellow-500 text-black">
-                <th className="py-3 px-2 sm:px-4 border-b text-left">No</th>
-                <th className="py-3 px-2 sm:px-4 border-b text-left">Hari dan Tanggal</th>
-                <th className="py-3 px-2 sm:px-4 border-b text-left">Status</th>
-                {!isMobile && <th className="py-3 px-4 border-b text-left">Catatan</th>}
-                <th className="py-3 px-2 sm:px-4 border-b text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {attendanceRecords.length > 0 ? (
-                attendanceRecords.map((record, index) => (
-                  <tr key={record.id} className={`border-b hover:bg-gray-50 ${editingRecord?.id === record.id ? 'bg-yellow-50' : ''}`}>
-                    <td className="py-3 px-2 sm:px-4">{index + 1}</td>
-                    <td className="py-3 px-2 sm:px-4">{record.date}</td>
-                    <td className="py-3 px-2 sm:px-4">
-                      <span className={`px-2 py-1 rounded-full text-sm font-semibold 
-                        ${record.status === 'Hadir' ? 'bg-green-100 text-green-800' :
-                          record.status === 'Sakit' ? 'bg-red-100 text-red-800' :
-                            record.status === 'Izin' ? 'bg-yellow-100 text-yellow-800' :
-                              record.status === 'Telat' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100 text-gray-800'}`}
-                      >
-                        {record.status}
-                      </span>
-                    </td>
-                    {!isMobile && <td className="py-3 px-4">{record.notes || '-'}</td>}
-                    <td className="py-3 px-2 sm:px-4 text-center">
-                      <div className={`${isMobile ? 'flex flex-col space-y-1' : 'flex space-x-2 justify-center'}`}>
-                        <button
-                          className="bg-yellow-400 hover:bg-yellow-500 text-black px-3 py-1 rounded"
-                          onClick={() => handleEdit(record)}
-                        >
-                          {isMobile ? '✏️' : 'Edit'}
-                        </button>
-                        <button
-                          className="bg-red-400 hover:bg-red-500 text-white px-3 py-1 rounded"
-                          onClick={() => handleDelete(record.id)}
-                        >
-                          {isMobile ? '🗑️' : 'Hapus'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr className="border-b">
-                  <td colSpan={isMobile ? 4 : 5} className="py-6 text-center text-gray-500">
-                    Belum ada rencana kehadiran
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
   );
