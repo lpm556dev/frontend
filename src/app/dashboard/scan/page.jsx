@@ -43,7 +43,6 @@ export default function QrCodeScanner() {
   const [weekendScanHistory, setWeekendScanHistory] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [todayScans, setTodayScans] = useState([]);
-  const [lastScanTime, setLastScanTime] = useState(0);
   
   // Scanner reference
   const scannerRef = useRef(null);
@@ -553,67 +552,45 @@ export default function QrCodeScanner() {
   
   // Handle successful QR scan
   const onScanSuccess = (decodedText) => {
-    const now = Date.now();
-    
-    // Prevent multiple scans within 2 seconds
-    if (now - lastScanTime < 2000) {
-      return;
-    }
-    
-    setLastScanTime(now);
-
     if (isOutsideValidHours) {
       toast.error("Tidak dapat melakukan scan di luar waktu yang ditentukan");
       stopScanner();
       return;
     }
 
-    // Validate QR code content
-    if (!decodedText || decodedText.trim().length === 0) {
-      toast.error("QR Code tidak valid");
-      return;
-    }
-
     setScannedCode(decodedText);
     stopScanner();
     
+    const now = new Date();
     const today = getTodayDateString();
     
-    // Check if this is the first or second scan today
-    const todayScanCount = todayScans.filter(scan => scan.date === today).length;
+    // Add to today's scans
+    const newScan = {
+      date: today,
+      timestamp: now.getTime(),
+      type: attendanceType
+    };
     
-    if (todayScanCount === 0) {
+    setTodayScans(prev => [...prev, newScan]);
+    
+    // Check if this is the first or second scan today
+    const todayScanCount = todayScans.filter(scan => scan.date === today).length + 1;
+    
+    if (todayScanCount === 1) {
       // First scan - set status to hadir
       setAttendanceStatus('hadir');
       setAttendanceType('masuk');
-      
-      // Add to today's scans
-      const newScan = {
-        date: today,
-        timestamp: now,
-        type: 'masuk'
-      };
-      
-      setTodayScans(prev => [...prev, newScan]);
-    } 
-    else if (todayScanCount === 1) {
+    } else if (todayScanCount === 2) {
       // Second scan - show permission form
       setShowPermissionForm(true);
       setAttendanceStatus('ijin pulang');
       setAttendanceType('keluar');
-      
-      // Add to today's scans
-      const newScan = {
-        date: today,
-        timestamp: now,
-        type: 'keluar'
-      };
-      
-      setTodayScans(prev => [...prev, newScan]);
-    } 
-    else {
-      // More than 2 scans - show warning
-      toast.error("Anda sudah melakukan scan 2 kali hari ini");
+    } else {
+      // More than 2 scans - show success but don't submit
+      setScanResult({
+        success: true,
+        message: "Anda sudah melakukan scan 2 kali hari ini",
+      });
       return;
     }
   };
@@ -694,14 +671,7 @@ export default function QrCodeScanner() {
             qrbox: { width: 250, height: 250 },
             rememberLastUsedCamera: true,
             showTorchButtonIfSupported: true,
-            aspectRatio: 1.0,
-            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-            formatsToSupport: [
-              Html5QrcodeSupportedFormats.QR_CODE,
-              Html5QrcodeSupportedFormats.UPC_A,
-              Html5QrcodeSupportedFormats.UPC_E,
-              Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION
-            ]
+            aspectRatio: 1.0
           }, 
           /* verbose= */ false
         );
@@ -709,9 +679,6 @@ export default function QrCodeScanner() {
         // Render the scanner and set up the callbacks
         scannerRef.current.render(onScanSuccess, (err) => {
           console.warn("QR scan error:", err);
-          if (err.includes('No MultiFormat Readers were able to detect the code')) {
-            toast.error("Gagal membaca QR Code. Pastikan QR Code jelas dan dalam jangkauan kamera.");
-          }
         });
         
         // Add scan animation overlay after scanner is initialized
@@ -906,15 +873,6 @@ export default function QrCodeScanner() {
   const handlePermissionSubmit = () => {
     if (!permissionReason) {
       toast.error('Harap masukkan alasan ijin');
-      return;
-    }
-    submitAttendance(scannedCode);
-  };
-
-  // Handle late submission
-  const handleLateSubmit = () => {
-    if (!lateReason) {
-      toast.error('Harap masukkan alasan keterlambatan');
       return;
     }
     submitAttendance(scannedCode);
