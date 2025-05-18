@@ -580,11 +580,18 @@ export default function QrCodeScanner() {
       // First scan - set status to hadir
       setAttendanceStatus('hadir');
       setAttendanceType('masuk');
-    } else if (todayScanCount === 2) {
+    } else if (todayScanCount === 100) {
       // Second scan - show permission form
       setShowPermissionForm(true);
       setAttendanceStatus('ijin pulang');
       setAttendanceType('keluar');
+    } else {
+      // More than 2 scans - show success but don't submit
+      setScanResult({
+        success: true,
+        message: "Anda sudah melakukan scan 2 kali hari ini",
+      });
+      return;
     }
   };
 
