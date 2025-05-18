@@ -7,7 +7,7 @@ import withReactContent from 'sweetalert2-react-content';
 
 const MySwal = withReactContent(Swal);
 
-const LihatPresensiPage = () => {
+const SeePresensiPage = () => {
   const router = useRouter();
   const { role, user, token } = useAuthStore();
   const [presensiData, setPresensiData] = useState([]);
@@ -30,28 +30,11 @@ const LihatPresensiPage = () => {
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
 
-  // Format date for filter input
-  const formatDateForInput = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toISOString().split('T')[0];
-  };
-
-  // Fetch presensi data based on user role
+  // Fetch presensi data
   const fetchPresensiData = async () => {
     setLoading(true);
     try {
-      let apiUrl;
-      
-      if (role === '3' || role === '4') {
-        // Admin can see all presensi
-        apiUrl = 'https://api.siapguna.org/api/admin/get-presensi';
-      } else {
-        // Regular users can only see their own presensi
-        apiUrl = `https://api.siapguna.org/api/users/get-presensi?user_id=${user?.userId}`;
-      }
-
-      console.log('Fetching presensi data from:', apiUrl); // Debugging
+      const apiUrl = 'https://api.siapguna.org/api/admin/get-presensi';
       
       const response = await fetch(apiUrl, {
         headers: {
@@ -60,33 +43,26 @@ const LihatPresensiPage = () => {
         }
       });
       
-      console.log('Response status:', response.status); // Debugging
-      
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Error response data:', errorData); // Debugging
         throw new Error(errorData.message || 'Gagal mengambil data presensi');
       }
 
       const data = await response.json();
-      console.log('API Response data:', data); // Debugging
       
       if (data.success) {
         // Format the data for display
         const formattedData = data.data.map(item => ({
-          id: item.id,
-          userId: item.user_id,
+          id: item.id || Math.random().toString(36).substring(2, 9),
           qrCode: item.qrcode_text,
-          name: item.nama_lengkap || item.user?.nama_lengkap || 'N/A',
-          pleton: item.qrcode_text?.startsWith('A') ? 'A' : 'B',
           jenis: item.jenis,
           status: item.status || (item.jenis === 'masuk' ? 'Masuk' : 'Keluar'),
           keterangan: item.keterangan || '-',
           waktu: item.waktu_presensi,
-          tanggal: formatDate(item.waktu_presensi)
+          formattedWaktu: formatDate(item.waktu_presensi),
+          pleton: item.qrcode_text?.startsWith('A') ? 'A' : 'B'
         }));
 
-        console.log('Formatted data:', formattedData); // Debugging
         setPresensiData(formattedData);
       } else {
         throw new Error(data.message || 'Gagal memuat data presensi');
@@ -118,7 +94,7 @@ const LihatPresensiPage = () => {
     }
     
     fetchPresensiData();
-  }, [role, user?.userId, token]);
+  }, [token]);
 
   // Filter data based on selected filters
   const filteredData = presensiData.filter(item => {
@@ -135,11 +111,10 @@ const LihatPresensiPage = () => {
       }
     }
     
-    // Filter by search query (name or qr code)
+    // Filter by search query (qr code)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      if (!item.name.toLowerCase().includes(query) && 
-          !item.qrCode.toLowerCase().includes(query)) {
+      if (!item.qrCode.toLowerCase().includes(query)) {
         return false;
       }
     }
@@ -198,11 +173,11 @@ const LihatPresensiPage = () => {
 
             {/* Search Filter */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cari Nama/QR Code</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cari QR Code</label>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Cari berdasarkan nama atau QR code..."
+                  placeholder="Cari berdasarkan QR code..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -243,13 +218,10 @@ const LihatPresensiPage = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nama
+                      QR Code
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Pleton
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      QR Code
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Jenis
@@ -269,13 +241,10 @@ const LihatPresensiPage = () => {
                   {filteredData.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {item.name}
+                        {item.qrCode}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {item.pleton}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.qrCode}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <span className={`px-2 py-1 rounded-full text-xs ${
@@ -299,7 +268,7 @@ const LihatPresensiPage = () => {
                         {item.keterangan}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.tanggal}
+                        {item.formattedWaktu}
                       </td>
                     </tr>
                   ))}
@@ -325,4 +294,4 @@ const LihatPresensiPage = () => {
   );
 };
 
-export default LihatPresensiPage;
+export default SeePresensiPage;
