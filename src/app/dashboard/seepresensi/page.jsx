@@ -9,7 +9,7 @@ const MySwal = withReactContent(Swal);
 
 const LihatPresensiPage = () => {
   const router = useRouter();
-  const { role, user } = useAuthStore();
+  const { role, user, token } = useAuthStore();
   const [presensiData, setPresensiData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -51,13 +51,25 @@ const LihatPresensiPage = () => {
         apiUrl = `https://api.siapguna.org/api/users/get-presensi?user_id=${user?.userId}`;
       }
 
-      const response = await fetch(apiUrl);
+      console.log('Fetching presensi data from:', apiUrl); // Debugging
+      
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Response status:', response.status); // Debugging
       
       if (!response.ok) {
-        throw new Error('Gagal mengambil data presensi');
+        const errorData = await response.json();
+        console.error('Error response data:', errorData); // Debugging
+        throw new Error(errorData.message || 'Gagal mengambil data presensi');
       }
 
       const data = await response.json();
+      console.log('API Response data:', data); // Debugging
       
       if (data.success) {
         // Format the data for display
@@ -74,6 +86,7 @@ const LihatPresensiPage = () => {
           tanggal: formatDate(item.waktu_presensi)
         }));
 
+        console.log('Formatted data:', formattedData); // Debugging
         setPresensiData(formattedData);
       } else {
         throw new Error(data.message || 'Gagal memuat data presensi');
@@ -83,7 +96,8 @@ const LihatPresensiPage = () => {
       MySwal.fire({
         icon: 'error',
         title: 'Error',
-        text: error.message || 'Gagal memuat data presensi'
+        text: error.message || 'Gagal memuat data presensi',
+        footer: 'Periksa koneksi internet Anda atau hubungi administrator'
       });
     } finally {
       setLoading(false);
@@ -91,8 +105,20 @@ const LihatPresensiPage = () => {
   };
 
   useEffect(() => {
+    // Check if token exists before fetching data
+    if (!token) {
+      MySwal.fire({
+        icon: 'warning',
+        title: 'Autentikasi Diperlukan',
+        text: 'Silakan login terlebih dahulu',
+      }).then(() => {
+        router.push('/login');
+      });
+      return;
+    }
+    
     fetchPresensiData();
-  }, [role, user?.userId]);
+  }, [role, user?.userId, token]);
 
   // Filter data based on selected filters
   const filteredData = presensiData.filter(item => {
