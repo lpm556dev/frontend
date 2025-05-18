@@ -200,13 +200,13 @@ export default function QrCodeScanner() {
 
     // Sunday - allowed before 16:00
     if (dayOfWeek === 0) {
-      if (hours < 16 || (hours === 16 && minutes === 0)) {
+      if (hours < 17 || (hours === 17 && minutes === 0)) {
         setIsOutsideValidHours(false);
         return true;
       } else {
         setIsOutsideValidHours(true);
         // Check if we need to set auto attendance
-        if (hours >= 16 && Object.keys(scannedUsers).length === 0) {
+        if (hours >= 17 && Object.keys(scannedUsers).length === 0) {
           setAutoAttendance(true);
           setAttendanceStatus('hadir');
         }
