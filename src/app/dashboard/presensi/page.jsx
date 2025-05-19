@@ -74,15 +74,22 @@ const PresensiPage = () => {
     }
   };
 
-  // Fetch presensi data from API
-  const fetchPresensiData = async () => {
+  // Fetch user data and presensi data from API
+  const fetchUserAndPresensiData = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user?.userId}`, {
+      // First verify we have a valid user
+      if (!user || !user.userId) {
+        throw new Error('User data not available');
+      }
+
+      // Fetch presensi data
+      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.userId}`, {
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
-        method : 'GET'
+        method: 'GET'
       });
 
       if (!response.ok) {
@@ -107,7 +114,7 @@ const PresensiPage = () => {
       setPresensiData(formattedData);
       calculateAttendanceSummary(formattedData);
     } catch (error) {
-      console.error('Error fetching presence data:', error);
+      console.error('Error fetching data:', error);
       MySwal.fire({
         title: 'Error',
         text: 'Gagal memuat data presensi',
@@ -157,9 +164,9 @@ const PresensiPage = () => {
   };
 
   useEffect(() => {
-    if(user !== null){}
-
-    fetchPresensiData();
+    if (user) {
+      fetchUserAndPresensiData();
+    }
   }, [user]);
 
   // Get weekend dates (Saturday and Sunday)
@@ -272,19 +279,25 @@ const PresensiPage = () => {
     try {
       setIsLoadingSubmit(true);
       
+      // Verify we have a valid user
+      if (!user || !user.userId) {
+        throw new Error('User data not available');
+      }
+      
       // Prepare data for API submission
       const payload = {
-        user_id: user.id,
+        user_id: user.userId,
         status: status,
         keterangan: notes,
         tanggal: dateFilter,
         waktu_presensi: new Date(dateFilter).toISOString()
       };
       
-      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.userId}`, {
-        method: 'GET',
+      const response = await fetch(`https://api.siapguna.org/api/users/post-presensi`, {
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });
@@ -297,13 +310,22 @@ const PresensiPage = () => {
       
       if (result.success) {
         setSuccessMessage('Presensi berhasil disimpan');
-        await fetchPresensiData(); // Refresh data
+        await fetchUserAndPresensiData(); // Refresh data
+        
+        // Reset form after successful submission
+        setTimeout(() => {
+          setStatus('');
+          setNotes('');
+          setShowNotesForm(false);
+          setShowStatusMenu(false);
+          setSelectedDate('');
+        }, 2000);
       } else {
         throw new Error(result.message || 'Gagal menyimpan presensi');
       }
     } catch (error) {
       console.error('Error submitting attendance:', error);
-      setError('Terjadi kesalahan saat menyimpan presensi');
+      setError(error.message || 'Terjadi kesalahan saat menyimpan presensi');
     } finally {
       setIsLoadingSubmit(false);
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -360,6 +382,18 @@ const PresensiPage = () => {
     }
   };
 
+  // Show loading state if user data is not yet available
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Memuat data pengguna...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
@@ -371,6 +405,21 @@ const PresensiPage = () => {
           >
             Kembali ke Dashboard
           </button>
+        </div>
+
+        {/* User Info Section */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <div className="flex items-center">
+            <div className="bg-blue-100 rounded-full p-3 mr-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800">{user.nama || 'Nama Pengguna'}</h2>
+              <p className="text-sm text-gray-600">{user.pleton ? `Peleton ${user.pleton}` : 'Peleton tidak tersedia'}</p>
+            </div>
+          </div>
         </div>
 
         {/* Kehadiran Summary Card */}
@@ -509,6 +558,7 @@ const PresensiPage = () => {
                       className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                       placeholder={`Berikan keterangan untuk ${status}...`}
                       rows="3"
+                      required
                     />
                     <p className="text-sm text-gray-500 mt-1">
                       Silakan berikan detail keterangan untuk {status}
