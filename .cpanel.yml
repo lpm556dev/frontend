@@ -1,6 +1,1 @@
----
-deployment:
-  tasks:
-    - npm install
-    - npm run build
-    - echo "Build complete."
+file yang tidak diperlukan
