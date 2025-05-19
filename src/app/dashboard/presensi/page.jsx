@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -78,12 +79,21 @@ const PresensiPage = () => {
   const fetchUserAndPresensiData = async () => {
     setLoading(true);
     try {
+<<<<<<< HEAD
       // First verify we have a valid user
       if (!user || !user.userId) {
         throw new Error('User data not available');
       }
 
       // Fetch presensi data
+=======
+      // Ensure we have a valid user ID
+      if (!user?.userId) {
+        console.error('User ID not found');
+        throw new Error('User ID not found');
+      }
+
+>>>>>>> bedfef2b89f30cc309c3d4685f1db451bc60913f
       const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.userId}`, {
         headers: {
           'Content-Type': 'application/json',
@@ -164,8 +174,13 @@ const PresensiPage = () => {
   };
 
   useEffect(() => {
+<<<<<<< HEAD
     if (user) {
       fetchUserAndPresensiData();
+=======
+    if(user !== null) {
+      fetchPresensiData();
+>>>>>>> bedfef2b89f30cc309c3d4685f1db451bc60913f
     }
   }, [user]);
 
@@ -279,22 +294,39 @@ const PresensiPage = () => {
     try {
       setIsLoadingSubmit(true);
       
+<<<<<<< HEAD
       // Verify we have a valid user
       if (!user || !user.userId) {
         throw new Error('User data not available');
+=======
+      // Ensure we have a valid user ID
+      if (!user?.userId) {
+        console.error('User ID not found');
+        throw new Error('User ID not found');
+>>>>>>> bedfef2b89f30cc309c3d4685f1db451bc60913f
       }
       
       // Prepare data for API submission
       const payload = {
+<<<<<<< HEAD
         user_id: user.userId,
+=======
+        user_id: user.userId, // Fixed to use user.userId consistently
+>>>>>>> bedfef2b89f30cc309c3d4685f1db451bc60913f
         status: status,
         keterangan: notes,
         tanggal: dateFilter,
         waktu_presensi: new Date(dateFilter).toISOString()
       };
       
+<<<<<<< HEAD
       const response = await fetch(`https://api.siapguna.org/api/users/post-presensi`, {
         method: 'POST',
+=======
+      // This should be a POST request, not GET
+      const response = await fetch(`https://api.siapguna.org/api/users/post-presensi`, {
+        method: 'POST', // Changed from GET to POST
+>>>>>>> bedfef2b89f30cc309c3d4685f1db451bc60913f
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
