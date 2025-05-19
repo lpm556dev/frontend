@@ -47,6 +47,8 @@ export default function QrCodeScanner() {
   // Scanner reference
   const scannerRef = useRef(null);
 
+  // ===== Date and Time Functions =====
+  
   // Calculate Hijri date from Gregorian date
   const calculateHijriDate = (gregorianDate) => {
     try {
@@ -132,6 +134,7 @@ export default function QrCodeScanner() {
     }
   };
 
+  // Format day name in Indonesian
   const formatDayName = (date) => {
     const dayNames = {
       0: 'Ahad',
@@ -146,6 +149,7 @@ export default function QrCodeScanner() {
     return dayNames[date.getDay()];
   };
 
+  // Format date in Indonesian
   const formatDate = (date) => {
     if (!date) return '';
     try {
@@ -161,65 +165,106 @@ export default function QrCodeScanner() {
     }
   };
 
+  // Check if current time is within valid hours (Saturday 16:00-Sunday 16:00)
   const checkValidHours = () => {
     const now = new Date();
     const hours = now.getHours();
     const minutes = now.getMinutes();
     const dayOfWeek = now.getDay();
 
-    // Saturday (6) after 16:00 or Sunday (0) before 16:00
-    if ((dayOfWeek === 6 && (hours >= 16)) || 
-        (dayOfWeek === 0 && (hours < 16 || (hours === 16 && minutes === 0)))) {
-      setIsOutsideValidHours(false);
-      return true;
+    // Monday to Friday - not allowed
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      setIsOutsideValidHours(true);
+      return false;
     }
 
+    // Saturday - allowed from 16:00 onwards
+    if (dayOfWeek === 6) {
+      if (hours >= 16) {
+        setIsOutsideValidHours(false);
+        return true;
+      } else {
+        setIsOutsideValidHours(true);
+        return false;
+      }
+    }
+
+    // Sunday - allowed before 16:00
+    if (dayOfWeek === 0) {
+      if (hours < 16 || (hours === 16 && minutes === 0)) {
+        setIsOutsideValidHours(false);
+        return true;
+      } else {
+        setIsOutsideValidHours(true);
+        // Check if we need to set auto attendance
+        if (hours >= 16 && scanCount === 0) {
+          setAutoAttendance(true);
+          setAttendanceStatus('hadir');
+        }
+        return false;
+      }
+    }
+
+    // Default case (shouldn't happen)
     setIsOutsideValidHours(true);
     return false;
   };
 
+  // Check if it's weekend (Saturday or Sunday)
   const isWeekend = () => {
     const now = new Date();
     return now.getDay() === 6 || now.getDay() === 0;
   };
 
+  // Check if it's Saturday
   const isSaturday = () => {
     const now = new Date();
     return now.getDay() === 6;
   };
 
+  // Check if it's Sunday
   const isSunday = () => {
     const now = new Date();
     return now.getDay() === 0;
   };
 
+  // Get today's date string in YYYY-MM-DD format
   const getTodayDateString = () => {
     const now = new Date();
     return now.toISOString().split('T')[0];
   };
 
+  // Check if user has already scanned today
   const hasScannedToday = () => {
     const today = getTodayDateString();
     return todayScans.some(scan => scan.date === today);
   };
 
+  // Check if user has completed both scans today
   const hasCompletedTodayScans = () => {
     const today = getTodayDateString();
     const todayScanCount = todayScans.filter(scan => scan.date === today).length;
     return todayScanCount >= 2;
   };
 
+  // ===== Effects =====
+  
+  // Initialize date/time and custom styling
   useEffect(() => {
+    // Initialize and update the clock and date
     const updateDateTime = () => {
       const now = new Date();
       
+      // Update time
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
       const seconds = String(now.getSeconds()).padStart(2, '0');
       setCurrentTime(`${hours}:${minutes}:${seconds}`);
       
+      // Update Gregorian date
       const gregorianDate = formatDate(now);
       
+      // Update Hijri date
       const hijriDate = calculateHijriDate(now);
       
       setCurrentDate({
@@ -230,18 +275,22 @@ export default function QrCodeScanner() {
         hijriYear: hijriDate.year
       });
 
+      // Check valid hours
       checkValidHours();
 
+      // Reset scan count if it's after Sunday 16:00
       if (now.getDay() === 0 && (now.getHours() > 16 || (now.getHours() === 16 && now.getMinutes() > 0))) {
         setScanCount(0);
         setWeekendScanStatus(null);
       }
       
+      // Reset scan count if it's before Saturday 16:00
       if (now.getDay() === 6 && now.getHours() < 16) {
         setScanCount(0);
         setWeekendScanStatus(null);
       }
 
+      // Determine attendance type based on time
       if (now.getHours() < 12) {
         setAttendanceType('masuk');
       } else {
@@ -249,9 +298,11 @@ export default function QrCodeScanner() {
       }
     };
 
+    // Update immediately and then every second
     updateDateTime();
     const clockInterval = setInterval(updateDateTime, 1000);
     
+    // Add custom CSS to improve the scanner UI
     const style = document.createElement('style');
     style.textContent = `
       #qr-reader {
@@ -400,18 +451,22 @@ export default function QrCodeScanner() {
     `;
     document.head.appendChild(style);
 
+    // Load weekend scan history from localStorage
     const savedHistory = localStorage.getItem('weekendScanHistory');
     if (savedHistory) {
       setWeekendScanHistory(JSON.parse(savedHistory));
     }
 
+    // Load today's scans from localStorage
     const savedTodayScans = localStorage.getItem('todayScans');
     if (savedTodayScans) {
       setTodayScans(JSON.parse(savedTodayScans));
     }
 
+    // Fetch initial attendance history
     fetchAttendanceHistory();
 
+    // Clean up scanner and clock interval on component unmount
     return () => {
       clearInterval(clockInterval);
       if (scannerRef.current) {
@@ -426,18 +481,21 @@ export default function QrCodeScanner() {
     };
   }, []);
 
+  // Save weekend scan history to localStorage when it changes
   useEffect(() => {
     if (weekendScanHistory.length > 0) {
       localStorage.setItem('weekendScanHistory', JSON.stringify(weekendScanHistory));
     }
   }, [weekendScanHistory]);
 
+  // Save today's scans to localStorage when it changes
   useEffect(() => {
     if (todayScans.length > 0) {
       localStorage.setItem('todayScans', JSON.stringify(todayScans));
     }
   }, [todayScans]);
 
+  // Handle auto attendance on Sunday after 16:00 if not scanned
   useEffect(() => {
     if (autoAttendance) {
       const submitAutoAttendance = async () => {
@@ -445,7 +503,7 @@ export default function QrCodeScanner() {
           const now = new Date();
           const payload = {
             qrcode_text: 'AUTO_ATTENDANCE',
-            jenis: 'keluar',
+            jenis: 'keluar', // Default to 'keluar' for auto attendance
             keterangan: 'presensi otomatis',
             status: 'hadir',
             waktu_presensi: now.toISOString()
@@ -490,6 +548,9 @@ export default function QrCodeScanner() {
     }
   }, [autoAttendance]);
 
+  // ===== QR Scanner Functions =====
+  
+  // Handle successful QR scan
   const onScanSuccess = (decodedText) => {
     if (isOutsideValidHours) {
       toast.error("Tidak dapat melakukan scan di luar waktu yang ditentukan");
@@ -503,6 +564,7 @@ export default function QrCodeScanner() {
     const now = new Date();
     const today = getTodayDateString();
     
+    // Add to today's scans
     const newScan = {
       date: today,
       timestamp: now.getTime(),
@@ -511,16 +573,20 @@ export default function QrCodeScanner() {
     
     setTodayScans(prev => [...prev, newScan]);
     
+    // Check if this is the first or second scan today
     const todayScanCount = todayScans.filter(scan => scan.date === today).length + 1;
     
     if (todayScanCount === 1) {
+      // First scan - set status to hadir
       setAttendanceStatus('hadir');
       setAttendanceType('masuk');
     } else if (todayScanCount === 2) {
+      // Second scan - show permission form
       setShowPermissionForm(true);
       setAttendanceStatus('ijin pulang');
       setAttendanceType('keluar');
     } else {
+      // More than 2 scans - show success but don't submit
       setScanResult({
         success: true,
         message: "Anda sudah melakukan scan 2 kali hari ini",
@@ -529,6 +595,7 @@ export default function QrCodeScanner() {
     }
   };
 
+  // Stop QR scanner
   const stopScanner = () => {
     if (scannerRef.current) {
       try {
@@ -541,6 +608,7 @@ export default function QrCodeScanner() {
     }
   };
 
+  // Start QR scanner
   const startScanner = () => {
     if (isOutsideValidHours) {
       toast.error("Fitur scan hanya tersedia pada Sabtu pukul 16.00 hingga Ahad pukul 16.00");
@@ -557,6 +625,7 @@ export default function QrCodeScanner() {
     setKeterangan(null);
     setScanning(true);
 
+    // Short delay to ensure DOM is fully ready
     setTimeout(() => {
       const qrReaderElement = document.getElementById("qr-reader");
       
@@ -567,8 +636,10 @@ export default function QrCodeScanner() {
         return;
       }
       
+      // Clear any existing content in the QR reader element
       qrReaderElement.innerHTML = '';
       
+      // Add a loading animation while scanner initializes
       const loadingDiv = document.createElement('div');
       loadingDiv.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px;">
@@ -592,6 +663,7 @@ export default function QrCodeScanner() {
       }
 
       try {
+        // Use the Html5QrcodeScanner with enhanced settings
         scannerRef.current = new Html5QrcodeScanner(
           "qr-reader", 
           { 
@@ -601,19 +673,23 @@ export default function QrCodeScanner() {
             showTorchButtonIfSupported: true,
             aspectRatio: 1.0
           }, 
-          false
+          /* verbose= */ false
         );
         
+        // Render the scanner and set up the callbacks
         scannerRef.current.render(onScanSuccess, (err) => {
           console.warn("QR scan error:", err);
         });
         
+        // Add scan animation overlay after scanner is initialized
         setTimeout(() => {
           const scanRegion = document.getElementById("qr-reader__scan_region");
           if (scanRegion) {
+            // Create overlay container
             const overlayDiv = document.createElement('div');
             overlayDiv.className = 'scan-overlay';
             
+            // Create corner markers
             const cornerTL = document.createElement('div');
             cornerTL.className = 'scan-corner scan-corner-tl';
             
@@ -626,9 +702,11 @@ export default function QrCodeScanner() {
             const cornerBR = document.createElement('div');
             cornerBR.className = 'scan-corner scan-corner-br';
             
+            // Create scanning line animation
             const scanLine = document.createElement('div');
             scanLine.className = 'scan-line';
             
+            // Append all elements
             overlayDiv.appendChild(cornerTL);
             overlayDiv.appendChild(cornerTR);
             overlayDiv.appendChild(cornerBL);
@@ -637,11 +715,13 @@ export default function QrCodeScanner() {
             
             scanRegion.appendChild(overlayDiv);
             
+            // Modify the header text to make it more attractive
             const header = document.querySelector("#qr-reader__header");
             if (header) {
               header.innerHTML = '<div style="font-weight: 600; color: #1e40af; text-align: center; padding: 10px;">📱 Arahkan Kamera ke QR Code</div>';
             }
             
+            // Enhance camera selection dropdown if it exists
             const cameraSelection = document.getElementById("qr-reader__camera_selection");
             if (cameraSelection) {
               cameraSelection.style.appearance = "none";
@@ -652,6 +732,7 @@ export default function QrCodeScanner() {
               cameraSelection.style.paddingRight = "40px";
             }
             
+            // Find and modify file selection button if it exists
             const fileButton = document.getElementById("qr-reader__filescan_input");
             if (fileButton) {
               fileButton.innerHTML = '🖼️ Pilih Gambar QR Code';
@@ -662,7 +743,9 @@ export default function QrCodeScanner() {
           }
         }, 1000);
         
+        // Modify UI elements to force camera-only mode
         setTimeout(() => {
+          // Try to hide file selection elements
           const fileSelectionElements = document.querySelectorAll('[id*="file"], [class*="file"], input[type="file"]');
           fileSelectionElements.forEach(element => {
             if (element) {
@@ -670,11 +753,13 @@ export default function QrCodeScanner() {
             }
           });
           
+          // Auto-click the camera permission button if it exists
           const cameraButton = document.getElementById("qr-reader__camera_permission_button");
           if (cameraButton) {
             cameraButton.click();
           }
           
+          // Focus on camera scanning interface
           const scanRegion = document.getElementById("qr-reader__scan_region");
           if (scanRegion) {
             scanRegion.style.display = "block";
@@ -689,6 +774,9 @@ export default function QrCodeScanner() {
     }, 300);
   };
 
+  // ===== API Interaction =====
+  
+  // Submit attendance data to server
   const submitAttendance = async (qrcodeText) => {
     if (!qrcodeText) return;
 
@@ -700,6 +788,7 @@ export default function QrCodeScanner() {
       let keteranganText = '';
       let jenis = attendanceType;
 
+      // Determine jenis and keterangan based on different conditions
       if (keterangan === 'izin' || keterangan === 'sakit') {
         jenis = 'izin';
         keteranganText = `izin karena ${keterangan}`;
@@ -740,6 +829,8 @@ export default function QrCodeScanner() {
           permissionReason: permissionReason
         });
         toast.success(`${data.message}`);
+        
+        // Fetch updated attendance history after successful submission
         fetchAttendanceHistory();
       } else {
         setScanResult({
@@ -760,9 +851,11 @@ export default function QrCodeScanner() {
     }
   };
 
+  // Fetch attendance history from server
   const fetchAttendanceHistory = async () => {
     try {
-      const user_id = 20;
+      // In a real app, you would get the user_id from authentication
+      const user_id = 20; // Example user ID
       const response = await fetch(`${API_URL}/users/get-presensi?user_id=${user_id}`);
       
       if (response.ok) {
@@ -776,6 +869,7 @@ export default function QrCodeScanner() {
     }
   };
 
+  // Handle permission submission
   const handlePermissionSubmit = () => {
     if (!permissionReason) {
       toast.error('Harap masukkan alasan ijin');
@@ -784,6 +878,7 @@ export default function QrCodeScanner() {
     submitAttendance(scannedCode);
   };
 
+  // Reset form to scan again
   const resetForm = () => {
     setScannedCode(null);
     setScanResult(null);
@@ -796,12 +891,7 @@ export default function QrCodeScanner() {
     startScanner();
   };
 
-  // Check if it's Sunday after 16:00
-  const isSundayAfter1600 = () => {
-    const now = new Date();
-    return now.getDay() === 0 && (now.getHours() > 16 || (now.getHours() === 16 && now.getMinutes() > 0));
-  };
-
+  // ===== Component Render =====
   return (
     <div className="container mx-auto px-4 py-8 max-w-md">
       <Toaster position="top-center" />
@@ -862,7 +952,7 @@ export default function QrCodeScanner() {
             </button>
             <p className="mt-3 text-sm text-gray-500">
               {isOutsideValidHours 
-                ? "Scan hanya tersedia pada Sabtu pukul 16.00 hingga Ahad pukul 16.00" 
+                ? "Scan hanya tersedia pada waktu yang ditentukan" 
                 : "Klik tombol di atas untuk membuka kamera"}
             </p>
           </div>
