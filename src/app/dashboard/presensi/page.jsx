@@ -47,50 +47,70 @@ const PresensiPage = () => {
   // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    const options = {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    };
-    return new Date(dateString).toLocaleDateString('id-ID', options);
+    try {
+      const options = {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      };
+      return new Date(dateString).toLocaleDateString('id-ID', options);
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return '-';
+    }
   };
 
   // Format date for date filter comparison
   const formatDateForFilter = (dateString) => {
     if (!dateString) return '';
-    return new Date(dateString).toISOString().split('T')[0];
+    try {
+      return new Date(dateString).toISOString().split('T')[0];
+    } catch (e) {
+      console.error('Error formatting filter date:', e);
+      return '';
+    }
   };
 
   // Format attendance time
   const formatAttendanceTime = (dateTimeString) => {
     if (!dateTimeString) return '-';
-    const date = new Date(dateTimeString);
-    return date.toLocaleTimeString('id-ID', { 
-      hour: '2-digit', 
-      minute: '2-digit'
-    });
+    try {
+      const date = new Date(dateTimeString);
+      return date.toLocaleTimeString('id-ID', { 
+        hour: '2-digit', 
+        minute: '2-digit'
+      });
+    } catch (e) {
+      console.error('Error formatting time:', e);
+      return '-';
+    }
   };
 
   // Format attendance date
   const formatAttendanceDate = (dateTimeString) => {
     if (!dateTimeString) return '-';
-    const date = new Date(dateTimeString);
-    return date.toLocaleDateString('id-ID', { 
-      weekday: 'long', 
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric'
-    });
+    try {
+      const date = new Date(dateTimeString);
+      return date.toLocaleDateString('id-ID', { 
+        weekday: 'long', 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric'
+      });
+    } catch (e) {
+      console.error('Error formatting attendance date:', e);
+      return '-';
+    }
   };
 
   // Fetch presensi data for the current user
   const fetchPresensiData = async () => {
     setLoading(true);
     try {
-      if (!user?.userId) {
+      if (!user?.userId || !token) {
         setLoading(false);
         return;
       }
@@ -103,13 +123,12 @@ const PresensiPage = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch presence data');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
 
-      if (data.success) {
+      if (data?.success) {
         const formattedData = data.data.map(item => ({
           id: item.id || Math.random().toString(36).substr(2, 9),
           qrCode: item.qrcode_text || '-',
@@ -125,7 +144,7 @@ const PresensiPage = () => {
         setPresensiData(formattedData);
         calculateAttendanceSummary(formattedData);
       } else {
-        throw new Error(data.message || 'Failed to load presence data');
+        throw new Error(data?.message || 'Failed to load presence data');
       }
     } catch (error) {
       console.error('Error fetching presence data:', error);
@@ -149,23 +168,29 @@ const PresensiPage = () => {
       total: 16
     };
 
+    if (!Array.isArray(attendanceData)) return;
+
     // Group by date to count unique attendance days
     const attendanceDays = new Set();
     
     attendanceData.forEach(record => {
-      const date = new Date(record.waktu).toLocaleDateString();
-      
-      if (record.jenis === 'masuk' || record.jenis === 'keluar') {
-        attendanceDays.add(date);
-      }
-      
-      if (record.status === 'izin') {
-        summary.izin++;
-      } else if (record.status === 'sakit') {
-        summary.sakit++;
-      } else if (record.status === 'telat') {
-        // Count as present but late
-        attendanceDays.add(date);
+      try {
+        const date = new Date(record.waktu).toLocaleDateString();
+        
+        if (record.jenis === 'masuk' || record.jenis === 'keluar') {
+          attendanceDays.add(date);
+        }
+        
+        if (record.status === 'izin') {
+          summary.izin++;
+        } else if (record.status === 'sakit') {
+          summary.sakit++;
+        } else if (record.status === 'telat') {
+          // Count as present but late
+          attendanceDays.add(date);
+        }
+      } catch (e) {
+        console.error('Error processing attendance record:', e);
       }
     });
 
@@ -177,28 +202,34 @@ const PresensiPage = () => {
   const groupAttendanceByDate = () => {
     const grouped = {};
     
+    if (!Array.isArray(presensiData)) return [];
+    
     presensiData.forEach(record => {
-      const date = new Date(record.waktu).toLocaleDateString('id-ID');
-      
-      if (!grouped[date]) {
-        grouped[date] = {
-          date,
-          masuk: null,
-          keluar: null,
-          keterangan: null
-        };
-      }
-      
-      if (record.jenis === 'masuk') {
-        grouped[date].masuk = record;
-        grouped[date].keterangan = record.keterangan || null;
-      } else if (record.jenis === 'keluar') {
-        grouped[date].keluar = record;
-        if (record.keterangan) {
-          grouped[date].keterangan = record.keterangan;
+      try {
+        const date = new Date(record.waktu).toLocaleDateString('id-ID');
+        
+        if (!grouped[date]) {
+          grouped[date] = {
+            date,
+            masuk: null,
+            keluar: null,
+            keterangan: null
+          };
         }
-      } else if (record.jenis === 'izin') {
-        grouped[date].keterangan = record.keterangan || 'Izin';
+        
+        if (record.jenis === 'masuk') {
+          grouped[date].masuk = record;
+          grouped[date].keterangan = record.keterangan || null;
+        } else if (record.jenis === 'keluar') {
+          grouped[date].keluar = record;
+          if (record.keterangan) {
+            grouped[date].keterangan = record.keterangan;
+          }
+        } else if (record.jenis === 'izin') {
+          grouped[date].keterangan = record.keterangan || 'Izin';
+        }
+      } catch (e) {
+        console.error('Error grouping attendance:', e);
       }
     });
     
@@ -208,7 +239,7 @@ const PresensiPage = () => {
   const groupedAttendance = groupAttendanceByDate();
 
   useEffect(() => {
-    if (user?.userId) {
+    if (user?.userId && token) {
       fetchPresensiData();
     } else {
       setLoading(false);
@@ -217,74 +248,93 @@ const PresensiPage = () => {
 
   // Get weekend dates (Saturday and Sunday)
   const getWeekendDates = () => {
-    const today = new Date();
-    const currentDay = today.getDay();
-    
-    // Calculate next Saturday
-    let saturday = new Date(today);
-    if (currentDay !== 6) {
-      const daysUntilSaturday = currentDay === 0 ? 6 : (6 - currentDay);
-      saturday.setDate(today.getDate() + daysUntilSaturday);
-    }
-    
-    // Calculate next Sunday
-    let sunday = new Date(saturday);
-    sunday.setDate(saturday.getDate() + 1);
-    
-    // Format dates
-    const formatDate = (date) => {
-      const yyyy = date.getFullYear();
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    };
-    
-    const formatDisplayDate = (date) => {
-      return date.toLocaleDateString('id-ID', { 
-        weekday: 'long', 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric'
-      });
-    };
-    
-    return {
-      saturday: {
-        formatted: formatDate(saturday),
-        display: formatDisplayDate(saturday)
-      },
-      sunday: {
-        formatted: formatDate(sunday),
-        display: formatDisplayDate(sunday)
+    try {
+      const today = new Date();
+      const currentDay = today.getDay();
+      
+      // Calculate next Saturday
+      let saturday = new Date(today);
+      if (currentDay !== 6) {
+        const daysUntilSaturday = currentDay === 0 ? 6 : (6 - currentDay);
+        saturday.setDate(today.getDate() + daysUntilSaturday);
       }
-    };
+      
+      // Calculate next Sunday
+      let sunday = new Date(saturday);
+      sunday.setDate(saturday.getDate() + 1);
+      
+      // Format dates
+      const formatDate = (date) => {
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      };
+      
+      const formatDisplayDate = (date) => {
+        return date.toLocaleDateString('id-ID', { 
+          weekday: 'long', 
+          day: 'numeric', 
+          month: 'long', 
+          year: 'numeric'
+        });
+      };
+      
+      return {
+        saturday: {
+          formatted: formatDate(saturday),
+          display: formatDisplayDate(saturday)
+        },
+        sunday: {
+          formatted: formatDate(sunday),
+          display: formatDisplayDate(sunday)
+        }
+      };
+    } catch (e) {
+      console.error('Error getting weekend dates:', e);
+      // Return fallback dates if error occurs
+      const today = new Date();
+      return {
+        saturday: {
+          formatted: today.toISOString().split('T')[0],
+          display: 'Sabtu'
+        },
+        sunday: {
+          formatted: new Date(today.setDate(today.getDate() + 1)).toISOString().split('T')[0],
+          display: 'Minggu'
+        }
+      };
+    }
   };
 
   const weekendDates = getWeekendDates();
   const saturdayFormatted = weekendDates.saturday.display;
   const sundayFormatted = weekendDates.sunday.display;
 
-  // Set nearest Saturday as default when component loads
-  useEffect(() => {
-    setDate(weekendDates.saturday.formatted);
-  }, []);
-
   // Handle date selection
   const handleDateSelection = (date, displayDate) => {
-    setSelectedDate(displayDate);
-    setDateFilter(date);
-    setShowStatusMenu(true);
-    setShowNotesForm(false);
-    setStatus('');
-    setNotes('');
+    try {
+      setSelectedDate(displayDate);
+      setDateFilter(date);
+      setShowStatusMenu(true);
+      setShowNotesForm(false);
+      setStatus('');
+      setNotes('');
+    } catch (e) {
+      console.error('Error handling date selection:', e);
+    }
   };
 
   // Handle status click
   const handleStatusClick = (selectedStatus) => {
-    setStatus(selectedStatus);
-    setShowNotesForm(selectedStatus !== 'Hadir');
-    if (selectedStatus === 'Hadir') {
-      setNotes('');
+    try {
+      setStatus(selectedStatus);
+      setShowNotesForm(selectedStatus !== 'Hadir');
+      if (selectedStatus === 'Hadir') {
+        setNotes('');
+      }
+    } catch (e) {
+      console.error('Error handling status click:', e);
     }
   };
 
@@ -306,6 +356,10 @@ const PresensiPage = () => {
     
     try {
       setIsLoadingSubmit(true);
+      if (!user?.userId || !token) {
+        throw new Error('User not authenticated');
+      }
+
       const response = await fetch('https://api.siapguna.org/api/users/presensi', {
         method: 'POST',
         headers: {
@@ -322,21 +376,22 @@ const PresensiPage = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit attendance');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to submit attendance');
       }
 
       const result = await response.json();
       
-      if (result.success) {
+      if (result?.success) {
         // Refresh attendance data
         await fetchPresensiData();
         setSuccessMessage('Presensi berhasil disimpan');
       } else {
-        setError(result.message || 'Gagal menyimpan presensi');
+        throw new Error(result?.message || 'Gagal menyimpan presensi');
       }
     } catch (error) {
       console.error('Error submitting attendance:', error);
-      setError('Terjadi kesalahan saat menyimpan presensi');
+      setError(error.message || 'Terjadi kesalahan saat menyimpan presensi');
     } finally {
       setIsLoadingSubmit(false);
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -345,39 +400,52 @@ const PresensiPage = () => {
 
   // Reset form
   const resetForm = () => {
-    setStatus('');
-    setNotes('');
-    setShowNotesForm(false);
-    setShowStatusMenu(false);
-    setSelectedDate('');
-    setError('');
+    try {
+      setStatus('');
+      setNotes('');
+      setShowNotesForm(false);
+      setShowStatusMenu(false);
+      setSelectedDate('');
+      setError('');
+    } catch (e) {
+      console.error('Error resetting form:', e);
+    }
   };
 
   // Filter data based on selected filters
   const filteredData = presensiData.filter(item => {
-    // Filter by type (masuk/keluar/izin)
-    if (filter !== 'all' && item.jenis !== filter) {
+    try {
+      // Filter by type (masuk/keluar/izin)
+      if (filter !== 'all' && item.jenis !== filter) {
+        return false;
+      }
+
+      // Filter by date
+      if (dateFilter && item.filterDate !== dateFilter) {
+        return false;
+      }
+
+      // Filter by search query (QR code)
+      if (searchQuery && !item.qrCode.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      console.error('Error filtering data:', e);
       return false;
     }
-
-    // Filter by date
-    if (dateFilter && item.filterDate !== dateFilter) {
-      return false;
-    }
-
-    // Filter by search query (QR code)
-    if (searchQuery && !item.qrCode.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-
-    return true;
   });
 
   // Handle reset filters
   const resetFilters = () => {
-    setFilter('all');
-    setDateFilter('');
-    setSearchQuery('');
+    try {
+      setFilter('all');
+      setDateFilter('');
+      setSearchQuery('');
+    } catch (e) {
+      console.error('Error resetting filters:', e);
+    }
   };
 
   return (
