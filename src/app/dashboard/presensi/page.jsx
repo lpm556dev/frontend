@@ -110,12 +110,12 @@ const PresensiPage = () => {
   const fetchPresensiData = async () => {
     setLoading(true);
     try {
-      if (!user?.userId || !token) {
+      if (!user?.id || !token) {
         setLoading(false);
         return;
       }
 
-      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.userId}`, {
+      const response = await fetch(`https://api.siapguna.org/api/users/presensi?user_id=${user.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -128,13 +128,13 @@ const PresensiPage = () => {
 
       const data = await response.json();
 
-      if (data?.success) {
-        const formattedData = data.data.map(item => ({
+      if (Array.isArray(data)) {
+        const formattedData = data.map(item => ({
           id: item.id || Math.random().toString(36).substr(2, 9),
           qrCode: item.qrcode_text || '-',
           pleton: item.qrcode_text?.startsWith('A') ? 'A' : 'B',
           jenis: item.jenis || '-',
-          status: item.status || (item.jenis === 'masuk' ? 'Masuk' : item.jenis === 'keluar' ? 'Keluar' : 'Izin'),
+          status: item.status || (item.jenis === 'masuk' ? 'Hadir' : item.jenis === 'keluar' ? 'Keluar' : 'Izin'),
           keterangan: item.keterangan || '-',
           waktu: item.waktu_presensi,
           formattedDate: formatDate(item.waktu_presensi),
@@ -144,13 +144,13 @@ const PresensiPage = () => {
         setPresensiData(formattedData);
         calculateAttendanceSummary(formattedData);
       } else {
-        throw new Error(data?.message || 'Failed to load presence data');
+        throw new Error('Invalid data format received from API');
       }
     } catch (error) {
       console.error('Error fetching presence data:', error);
       MySwal.fire({
         title: 'Error',
-        text: error.message || 'Failed to load presence data',
+        text: error.message || 'Gagal memuat data presensi',
         icon: 'error',
         confirmButtonText: 'OK'
       });
@@ -239,12 +239,12 @@ const PresensiPage = () => {
   const groupedAttendance = groupAttendanceByDate();
 
   useEffect(() => {
-    if (user?.userId && token) {
+    if (user?.id && token) {
       fetchPresensiData();
     } else {
       setLoading(false);
     }
-  }, [user?.userId, token]);
+  }, [user?.id, token]);
 
   // Get weekend dates (Saturday and Sunday)
   const getWeekendDates = () => {
@@ -356,7 +356,7 @@ const PresensiPage = () => {
     
     try {
       setIsLoadingSubmit(true);
-      if (!user?.userId || !token) {
+      if (!user?.id || !token) {
         throw new Error('User not authenticated');
       }
 
@@ -367,7 +367,7 @@ const PresensiPage = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          user_id: user.userId,
+          user_id: user.id,
           jenis: status === 'Hadir' ? 'masuk' : 'izin',
           keterangan: notes,
           status: status.toLowerCase(),
@@ -377,7 +377,7 @@ const PresensiPage = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to submit attendance');
+        throw new Error(errorData.message || 'Gagal menyimpan presensi');
       }
 
       const result = await response.json();
@@ -452,12 +452,12 @@ const PresensiPage = () => {
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">My Presence Records</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Presensi</h1>
           <button
             onClick={() => router.push('/dashboard')}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Back to Dashboard
+            Kembali ke Dashboard
           </button>
         </div>
 
@@ -467,7 +467,7 @@ const PresensiPage = () => {
             <div className={isMobile ? 'text-center' : ''}>
               <h2 className="text-lg font-medium">Kehadiran</h2>
               <p className="font-bold mt-1">
-                {loading ? 'Loading...' : `${attendanceSummary.hadir} DARI ${attendanceSummary.total} SESI`}
+                {loading ? 'Memuat...' : `${attendanceSummary.hadir} DARI ${attendanceSummary.total} SESI`}
               </p>
             </div>
             
@@ -488,9 +488,9 @@ const PresensiPage = () => {
           </div>
         </div>
 
-        {/* Planning Summary Card */}
+        {/* Planning Section */}
         <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-100">
-          <h3 className="text-md font-medium mb-3">Jadwal Minggu Ini:</h3>
+          <h3 className="text-md font-medium mb-3">Rencana Kehadiran Minggu Ini:</h3>
           <div className={`${isMobile ? 'flex flex-col space-y-3' : 'flex space-x-4'}`}>
             <div className="bg-white p-3 rounded border border-gray-200 flex-1">
               <p className="font-medium">{saturdayFormatted}</p>
@@ -631,131 +631,137 @@ const PresensiPage = () => {
           <p className="text-sm mt-1">Presensi kehadiran yang sesungguhnya akan dilakukan secara offline dengan memindai barcode pada saat pertemuan. Rencana kehadiran ini <strong>hanya untuk prediksi</strong> dan tidak akan mempengaruhi kehadiran sebenarnya.</p>
         </div>
 
-        {/* Filter Section */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Presence Type Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipe Kehadiran</label>
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {/* Presence History Section */}
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Riwayat Presensi</h2>
+          
+          {/* Filter Section */}
+          <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Presence Type Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipe Kehadiran</label>
+                <select
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Semua</option>
+                  <option value="masuk">Masuk</option>
+                  <option value="keluar">Keluar</option>
+                  <option value="izin">Izin</option>
+                </select>
+              </div>
+
+              {/* Date Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
+                <input
+                  type="date"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Reset Button */}
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={resetFilters}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
               >
-                <option value="all">Semua</option>
-                <option value="masuk">Masuk</option>
-                <option value="keluar">Keluar</option>
-                <option value="izin">Izin</option>
-              </select>
-            </div>
-
-            {/* Date Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+                Reset Filter
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
             </div>
           </div>
 
-          {/* Reset Button */}
-          <div className="mt-4 flex justify-end">
-            <button
-              onClick={resetFilters}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
-            >
-              Reset Filters
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Data Table */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          {loading ? (
-            <div className="flex justify-center items-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-3">Loading presence data...</span>
-            </div>
-          ) : filteredData.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Platoon
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      QR Code
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Note
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Time
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredData.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.pleton}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.qrCode}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className={`px-2 py-1 rounded-full text-xs ${item.jenis === 'masuk' ? 'bg-blue-100 text-blue-800' :
-                          item.jenis === 'keluar' ? 'bg-purple-100 text-purple-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                          {item.jenis}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className={`px-2 py-1 rounded-full text-xs ${item.status.toLowerCase() === 'hadir' ? 'bg-green-100 text-green-800' :
-                          item.status.toLowerCase() === 'izin' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.keterangan}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {item.formattedDate}
-                      </td>
+          {/* Data Table */}
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            {loading ? (
+              <div className="flex justify-center items-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-3">Memuat data presensi...</span>
+              </div>
+            ) : filteredData.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Peleton
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        QR Code
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Jenis
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Keterangan
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Waktu
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No presence data found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {searchQuery || filter !== 'all' || dateFilter
-                  ? "Try adjusting your search filters"
-                  : "No presence data has been recorded yet"}
-              </p>
-            </div>
-          )}
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredData.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.pleton}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.qrCode}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <span className={`px-2 py-1 rounded-full text-xs ${item.jenis === 'masuk' ? 'bg-blue-100 text-blue-800' :
+                            item.jenis === 'keluar' ? 'bg-purple-100 text-purple-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                            {item.jenis}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <span className={`px-2 py-1 rounded-full text-xs ${item.status.toLowerCase() === 'hadir' ? 'bg-green-100 text-green-800' :
+                            item.status.toLowerCase() === 'izin' ? 'bg-yellow-100 text-yellow-800' :
+                              item.status.toLowerCase() === 'sakit' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                            {item.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.keterangan}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {item.formattedDate}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Tidak ada data presensi</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {searchQuery || filter !== 'all' || dateFilter
+                    ? "Coba sesuaikan filter pencarian Anda"
+                    : "Belum ada data presensi yang tercatat"}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
