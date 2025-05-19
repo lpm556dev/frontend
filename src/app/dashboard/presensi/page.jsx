@@ -83,7 +83,7 @@ const PresensiPage = () => {
         return;
       }
 
-      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.id}`, {
+      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.id}&limit=50&page=1`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
