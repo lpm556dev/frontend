@@ -78,7 +78,7 @@ const PresensiPage = () => {
   const fetchPresensiData = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.userId}`, {
+      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user?.userId}`, {
         headers: {
           'Content-Type': 'application/json'
         },
@@ -157,8 +157,11 @@ const PresensiPage = () => {
   };
 
   useEffect(() => {
+    if(user.userId !== null){
     fetchPresensiData();
-  }, [user, token]);
+    }
+
+  }, [user]);
 
   // Get weekend dates (Saturday and Sunday)
   const getWeekendDates = () => {
