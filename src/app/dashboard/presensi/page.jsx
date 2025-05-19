@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -78,11 +79,17 @@ const PresensiPage = () => {
   const fetchPresensiData = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user?.userId}`, {
+      // Ensure we have a valid user ID
+      if (!user?.userId) {
+        console.error('User ID not found');
+        throw new Error('User ID not found');
+      }
+
+      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.userId}`, {
         headers: {
           'Content-Type': 'application/json'
         },
-        method : 'GET'
+        method: 'GET'
       });
 
       if (!response.ok) {
@@ -157,9 +164,9 @@ const PresensiPage = () => {
   };
 
   useEffect(() => {
-    if(user !== null){}
-
-    fetchPresensiData();
+    if(user !== null) {
+      fetchPresensiData();
+    }
   }, [user]);
 
   // Get weekend dates (Saturday and Sunday)
@@ -272,17 +279,24 @@ const PresensiPage = () => {
     try {
       setIsLoadingSubmit(true);
       
+      // Ensure we have a valid user ID
+      if (!user?.userId) {
+        console.error('User ID not found');
+        throw new Error('User ID not found');
+      }
+      
       // Prepare data for API submission
       const payload = {
-        user_id: user.id,
+        user_id: user.userId, // Fixed to use user.userId consistently
         status: status,
         keterangan: notes,
         tanggal: dateFilter,
         waktu_presensi: new Date(dateFilter).toISOString()
       };
       
-      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.userId}`, {
-        method: 'GET',
+      // This should be a POST request, not GET
+      const response = await fetch(`https://api.siapguna.org/api/users/post-presensi`, {
+        method: 'POST', // Changed from GET to POST
         headers: {
           'Content-Type': 'application/json'
         },
