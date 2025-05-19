@@ -283,8 +283,8 @@ const PresensiPage = () => {
         waktu_presensi: new Date(dateFilter).toISOString()
       };
       
-      const response = await fetch('https://api.siapguna.org/api/users/presensi', {
-        method: 'POST',
+      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.userId}`, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
