@@ -78,10 +78,6 @@ const PresensiPage = () => {
   const fetchPresensiData = async () => {
     setLoading(true);
     try {
-      if (!user?.id || !token) {
-        throw new Error('User data or token not available');
-      }
-
       const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.userId}`, {
         headers: {
           'Content-Type': 'application/json'
