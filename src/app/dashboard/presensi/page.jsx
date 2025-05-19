@@ -33,6 +33,50 @@ const PresensiPage = () => {
     total: 16
   });
 
+  // Mock data for presensi
+  const mockPresensiData = [
+    {
+      id: 1,
+      qrcode_text: 'A123',
+      jenis: 'masuk',
+      status: 'Hadir',
+      keterangan: 'Hadir tepat waktu',
+      waktu_presensi: new Date('2023-05-15T08:00:00').toISOString()
+    },
+    {
+      id: 2,
+      qrcode_text: 'A123',
+      jenis: 'keluar',
+      status: 'Hadir',
+      keterangan: 'Pulang tepat waktu',
+      waktu_presensi: new Date('2023-05-15T16:30:00').toISOString()
+    },
+    {
+      id: 3,
+      qrcode_text: 'A123',
+      jenis: 'izin',
+      status: 'Izin',
+      keterangan: 'Ada keperluan keluarga',
+      waktu_presensi: new Date('2023-05-16T08:00:00').toISOString()
+    },
+    {
+      id: 4,
+      qrcode_text: 'B456',
+      jenis: 'masuk',
+      status: 'Telat',
+      keterangan: 'Terlambat 30 menit',
+      waktu_presensi: new Date('2023-05-17T08:30:00').toISOString()
+    },
+    {
+      id: 5,
+      qrcode_text: 'B456',
+      jenis: 'keluar',
+      status: 'Hadir',
+      keterangan: '',
+      waktu_presensi: new Date('2023-05-17T17:00:00').toISOString()
+    }
+  ];
+
   // Check if it's mobile view
   useEffect(() => {
     const checkIfMobile = () => {
@@ -74,83 +118,33 @@ const PresensiPage = () => {
     }
   };
 
-  // Format attendance time
-  const formatAttendanceTime = (dateTimeString) => {
-    if (!dateTimeString) return '-';
-    try {
-      const date = new Date(dateTimeString);
-      return date.toLocaleTimeString('id-ID', { 
-        hour: '2-digit', 
-        minute: '2-digit'
-      });
-    } catch (e) {
-      console.error('Error formatting time:', e);
-      return '-';
-    }
-  };
-
-  // Format attendance date
-  const formatAttendanceDate = (dateTimeString) => {
-    if (!dateTimeString) return '-';
-    try {
-      const date = new Date(dateTimeString);
-      return date.toLocaleDateString('id-ID', { 
-        weekday: 'long', 
-        day: 'numeric', 
-        month: 'long', 
-        year: 'numeric'
-      });
-    } catch (e) {
-      console.error('Error formatting attendance date:', e);
-      return '-';
-    }
-  };
-
-  // Fetch presensi data for the current user
+  // Fetch presensi data - using mock data
   const fetchPresensiData = async () => {
     setLoading(true);
     try {
-      if (!user?.id || !token) {
-        setLoading(false);
-        return;
-      }
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Use mock data instead of API call
+      const formattedData = mockPresensiData.map(item => ({
+        id: item.id,
+        qrCode: item.qrcode_text,
+        pleton: item.qrcode_text?.startsWith('A') ? 'A' : 'B',
+        jenis: item.jenis,
+        status: item.status,
+        keterangan: item.keterangan,
+        waktu: item.waktu_presensi,
+        formattedDate: formatDate(item.waktu_presensi),
+        filterDate: formatDateForFilter(item.waktu_presensi)
+      }));
 
-      const response = await fetch(`https://api.siapguna.org/api/users/presensi?user_id=${user.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (Array.isArray(data)) {
-        const formattedData = data.map(item => ({
-          id: item.id || Math.random().toString(36).substr(2, 9),
-          qrCode: item.qrcode_text || '-',
-          pleton: item.qrcode_text?.startsWith('A') ? 'A' : 'B',
-          jenis: item.jenis || '-',
-          status: item.status || (item.jenis === 'masuk' ? 'Hadir' : item.jenis === 'keluar' ? 'Keluar' : 'Izin'),
-          keterangan: item.keterangan || '-',
-          waktu: item.waktu_presensi,
-          formattedDate: formatDate(item.waktu_presensi),
-          filterDate: formatDateForFilter(item.waktu_presensi)
-        }));
-
-        setPresensiData(formattedData);
-        calculateAttendanceSummary(formattedData);
-      } else {
-        throw new Error('Invalid data format received from API');
-      }
+      setPresensiData(formattedData);
+      calculateAttendanceSummary(formattedData);
     } catch (error) {
       console.error('Error fetching presence data:', error);
       MySwal.fire({
         title: 'Error',
-        text: error.message || 'Gagal memuat data presensi',
+        text: 'Gagal memuat data presensi',
         icon: 'error',
         confirmButtonText: 'OK'
       });
@@ -159,7 +153,7 @@ const PresensiPage = () => {
     }
   };
 
-  // Calculate attendance summary from API data
+  // Calculate attendance summary
   const calculateAttendanceSummary = (attendanceData) => {
     const summary = {
       hadir: 0,
@@ -170,7 +164,6 @@ const PresensiPage = () => {
 
     if (!Array.isArray(attendanceData)) return;
 
-    // Group by date to count unique attendance days
     const attendanceDays = new Set();
     
     attendanceData.forEach(record => {
@@ -181,12 +174,11 @@ const PresensiPage = () => {
           attendanceDays.add(date);
         }
         
-        if (record.status === 'izin') {
+        if (record.status === 'Izin') {
           summary.izin++;
-        } else if (record.status === 'sakit') {
+        } else if (record.status === 'Sakit') {
           summary.sakit++;
-        } else if (record.status === 'telat') {
-          // Count as present but late
+        } else if (record.status === 'Telat') {
           attendanceDays.add(date);
         }
       } catch (e) {
@@ -198,53 +190,9 @@ const PresensiPage = () => {
     setAttendanceSummary(summary);
   };
 
-  // Group actual attendance data by date
-  const groupAttendanceByDate = () => {
-    const grouped = {};
-    
-    if (!Array.isArray(presensiData)) return [];
-    
-    presensiData.forEach(record => {
-      try {
-        const date = new Date(record.waktu).toLocaleDateString('id-ID');
-        
-        if (!grouped[date]) {
-          grouped[date] = {
-            date,
-            masuk: null,
-            keluar: null,
-            keterangan: null
-          };
-        }
-        
-        if (record.jenis === 'masuk') {
-          grouped[date].masuk = record;
-          grouped[date].keterangan = record.keterangan || null;
-        } else if (record.jenis === 'keluar') {
-          grouped[date].keluar = record;
-          if (record.keterangan) {
-            grouped[date].keterangan = record.keterangan;
-          }
-        } else if (record.jenis === 'izin') {
-          grouped[date].keterangan = record.keterangan || 'Izin';
-        }
-      } catch (e) {
-        console.error('Error grouping attendance:', e);
-      }
-    });
-    
-    return Object.values(grouped);
-  };
-  
-  const groupedAttendance = groupAttendanceByDate();
-
   useEffect(() => {
-    if (user?.id && token) {
-      fetchPresensiData();
-    } else {
-      setLoading(false);
-    }
-  }, [user?.id, token]);
+    fetchPresensiData();
+  }, []);
 
   // Get weekend dates (Saturday and Sunday)
   const getWeekendDates = () => {
@@ -292,7 +240,6 @@ const PresensiPage = () => {
       };
     } catch (e) {
       console.error('Error getting weekend dates:', e);
-      // Return fallback dates if error occurs
       const today = new Date();
       return {
         saturday: {
@@ -356,42 +303,29 @@ const PresensiPage = () => {
     
     try {
       setIsLoadingSubmit(true);
-      if (!user?.id || !token) {
-        throw new Error('User not authenticated');
-      }
-
-      const response = await fetch('https://api.siapguna.org/api/users/presensi', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          user_id: user.id,
-          jenis: status === 'Hadir' ? 'masuk' : 'izin',
-          keterangan: notes,
-          status: status.toLowerCase(),
-          waktu_presensi: new Date(dateFilter).toISOString()
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Gagal menyimpan presensi');
-      }
-
-      const result = await response.json();
       
-      if (result?.success) {
-        // Refresh attendance data
-        await fetchPresensiData();
-        setSuccessMessage('Presensi berhasil disimpan');
-      } else {
-        throw new Error(result?.message || 'Gagal menyimpan presensi');
-      }
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Create new presensi entry
+      const newEntry = {
+        id: Math.max(...mockPresensiData.map(item => item.id)) + 1,
+        qrcode_text: status === 'Hadir' ? 'A' + Math.floor(Math.random() * 1000) : '',
+        jenis: status === 'Hadir' ? 'masuk' : 'izin',
+        status: status,
+        keterangan: notes,
+        waktu_presensi: new Date(dateFilter).toISOString()
+      };
+      
+      // Add to mock data (in a real app, this would be an API call)
+      mockPresensiData.push(newEntry);
+      
+      // Refresh data
+      await fetchPresensiData();
+      setSuccessMessage('Presensi berhasil disimpan');
     } catch (error) {
       console.error('Error submitting attendance:', error);
-      setError(error.message || 'Terjadi kesalahan saat menyimpan presensi');
+      setError('Terjadi kesalahan saat menyimpan presensi');
     } finally {
       setIsLoadingSubmit(false);
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -732,6 +666,7 @@ const PresensiPage = () => {
                           <span className={`px-2 py-1 rounded-full text-xs ${item.status.toLowerCase() === 'hadir' ? 'bg-green-100 text-green-800' :
                             item.status.toLowerCase() === 'izin' ? 'bg-yellow-100 text-yellow-800' :
                               item.status.toLowerCase() === 'sakit' ? 'bg-red-100 text-red-800' :
+                              item.status.toLowerCase() === 'telat' ? 'bg-orange-100 text-orange-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
                             {item.status}
