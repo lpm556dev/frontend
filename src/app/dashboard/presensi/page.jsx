@@ -157,10 +157,9 @@ const PresensiPage = () => {
   };
 
   useEffect(() => {
-    if(user.userId !== null){
-    fetchPresensiData();
-    }
+    if(user !== null){}
 
+    fetchPresensiData();
   }, [user]);
 
   // Get weekend dates (Saturday and Sunday)
