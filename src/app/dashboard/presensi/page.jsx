@@ -33,50 +33,6 @@ const PresensiPage = () => {
     total: 16
   });
 
-  // Mock data for presensi
-  const mockPresensiData = [
-    {
-      id: 1,
-      qrcode_text: 'A123',
-      jenis: 'masuk',
-      status: 'Hadir',
-      keterangan: 'Hadir tepat waktu',
-      waktu_presensi: new Date('2023-05-15T08:00:00').toISOString()
-    },
-    {
-      id: 2,
-      qrcode_text: 'A123',
-      jenis: 'keluar',
-      status: 'Hadir',
-      keterangan: 'Pulang tepat waktu',
-      waktu_presensi: new Date('2023-05-15T16:30:00').toISOString()
-    },
-    {
-      id: 3,
-      qrcode_text: 'A123',
-      jenis: 'izin',
-      status: 'Izin',
-      keterangan: 'Ada keperluan keluarga',
-      waktu_presensi: new Date('2023-05-16T08:00:00').toISOString()
-    },
-    {
-      id: 4,
-      qrcode_text: 'B456',
-      jenis: 'masuk',
-      status: 'Telat',
-      keterangan: 'Terlambat 30 menit',
-      waktu_presensi: new Date('2023-05-17T08:30:00').toISOString()
-    },
-    {
-      id: 5,
-      qrcode_text: 'B456',
-      jenis: 'keluar',
-      status: 'Hadir',
-      keterangan: '',
-      waktu_presensi: new Date('2023-05-17T17:00:00').toISOString()
-    }
-  ];
-
   // Check if it's mobile view
   useEffect(() => {
     const checkIfMobile = () => {
@@ -118,25 +74,41 @@ const PresensiPage = () => {
     }
   };
 
-  // Fetch presensi data - using mock data
+  // Fetch presensi data from API
   const fetchPresensiData = async () => {
     setLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Use mock data instead of API call
-      const formattedData = mockPresensiData.map(item => ({
-        id: item.id,
-        qrCode: item.qrcode_text,
+      if (!user?.id || !token) {
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(`https://api.siapguna.org/api/users/get-presensi?user_id=${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Gagal mengambil data presensi');
+      }
+
+      const data = await response.json();
+
+      // Process API response
+      const formattedData = Array.isArray(data) ? data.map(item => ({
+        id: item.id || Math.random().toString(36).substr(2, 9),
+        qrCode: item.qrcode_text || '-',
         pleton: item.qrcode_text?.startsWith('A') ? 'A' : 'B',
-        jenis: item.jenis,
-        status: item.status,
-        keterangan: item.keterangan,
-        waktu: item.waktu_presensi,
+        jenis: item.jenis || '-',
+        status: item.status || (item.jenis === 'masuk' ? 'Hadir' : item.jenis === 'keluar' ? 'Keluar' : 'Izin'),
+        keterangan: item.keterangan || '-',
+        waktu_presensi: item.waktu_presensi,
         formattedDate: formatDate(item.waktu_presensi),
         filterDate: formatDateForFilter(item.waktu_presensi)
-      }));
+      })) : [];
 
       setPresensiData(formattedData);
       calculateAttendanceSummary(formattedData);
@@ -144,7 +116,7 @@ const PresensiPage = () => {
       console.error('Error fetching presence data:', error);
       MySwal.fire({
         title: 'Error',
-        text: 'Gagal memuat data presensi',
+        text: error.message || 'Gagal memuat data presensi',
         icon: 'error',
         confirmButtonText: 'OK'
       });
@@ -153,7 +125,7 @@ const PresensiPage = () => {
     }
   };
 
-  // Calculate attendance summary
+  // Calculate attendance summary from API data
   const calculateAttendanceSummary = (attendanceData) => {
     const summary = {
       hadir: 0,
@@ -168,17 +140,17 @@ const PresensiPage = () => {
     
     attendanceData.forEach(record => {
       try {
-        const date = new Date(record.waktu).toLocaleDateString();
+        const date = new Date(record.waktu_presensi).toLocaleDateString();
         
         if (record.jenis === 'masuk' || record.jenis === 'keluar') {
           attendanceDays.add(date);
         }
         
-        if (record.status === 'Izin') {
+        if (record.status === 'izin') {
           summary.izin++;
-        } else if (record.status === 'Sakit') {
+        } else if (record.status === 'sakit') {
           summary.sakit++;
-        } else if (record.status === 'Telat') {
+        } else if (record.status === 'telat') {
           attendanceDays.add(date);
         }
       } catch (e) {
@@ -191,8 +163,10 @@ const PresensiPage = () => {
   };
 
   useEffect(() => {
-    fetchPresensiData();
-  }, []);
+    if (user?.id && token) {
+      fetchPresensiData();
+    }
+  }, [user?.id, token]);
 
   // Get weekend dates (Saturday and Sunday)
   const getWeekendDates = () => {
@@ -285,7 +259,7 @@ const PresensiPage = () => {
     }
   };
 
-  // Handle form submit
+  // Handle form submit to API
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -304,28 +278,38 @@ const PresensiPage = () => {
     try {
       setIsLoadingSubmit(true);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await fetch('https://api.siapguna.org/api/users/presensi', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          jenis: status === 'Hadir' ? 'masuk' : 'izin',
+          keterangan: notes,
+          status: status.toLowerCase(),
+          waktu_presensi: new Date(dateFilter).toISOString()
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Gagal menyimpan presensi');
+      }
+
+      const result = await response.json();
       
-      // Create new presensi entry
-      const newEntry = {
-        id: Math.max(...mockPresensiData.map(item => item.id)) + 1,
-        qrcode_text: status === 'Hadir' ? 'A' + Math.floor(Math.random() * 1000) : '',
-        jenis: status === 'Hadir' ? 'masuk' : 'izin',
-        status: status,
-        keterangan: notes,
-        waktu_presensi: new Date(dateFilter).toISOString()
-      };
-      
-      // Add to mock data (in a real app, this would be an API call)
-      mockPresensiData.push(newEntry);
-      
-      // Refresh data
-      await fetchPresensiData();
-      setSuccessMessage('Presensi berhasil disimpan');
+      if (result?.success) {
+        // Refresh attendance data
+        await fetchPresensiData();
+        setSuccessMessage('Presensi berhasil disimpan');
+      } else {
+        throw new Error(result?.message || 'Gagal menyimpan presensi');
+      }
     } catch (error) {
       console.error('Error submitting attendance:', error);
-      setError('Terjadi kesalahan saat menyimpan presensi');
+      setError(error.message || 'Terjadi kesalahan saat menyimpan presensi');
     } finally {
       setIsLoadingSubmit(false);
       setTimeout(() => setSuccessMessage(''), 3000);
