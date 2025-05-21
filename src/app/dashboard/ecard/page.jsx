@@ -150,7 +150,7 @@ export default function ECard() {
           
           <div className="flex items-center justify-center">
             <Image 
-              src="/img/logo_ssg.png" 
+              src="/img/logossg_white.png" 
               alt="Santri Siap Guna Logo" 
               width={40} 
               height={40} 
