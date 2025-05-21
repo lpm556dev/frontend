@@ -12,8 +12,7 @@ import { toPng } from 'html-to-image';
 export default function ECard() {
   const { user, loading, error, qrcode, fetchUserQRCode } = useAuthStore();
   const [isProcessing, setIsProcessing] = useState(false);
-  const frontCardRef = useRef();
-  const backCardRef = useRef();
+  const printRef = useRef(); // Single ref untuk seluruh konten cetak
 
   useEffect(() => {
     fetchUserQRCode();
@@ -23,85 +22,26 @@ export default function ECard() {
     window.history.back();
   };
 
-  const handlePrint = async () => {
-    setIsProcessing(true);
-    
-    try {
-      // Convert cards to high-quality images
-      const frontCardImg = await toPng(frontCardRef.current, {
-        quality: 1,
-        pixelRatio: 3, // Higher resolution for print
-        cacheBust: true,
-        backgroundColor: '#1E3A8A'
-      });
-      
-      const backCardImg = await toPng(backCardRef.current, {
-        quality: 1,
-        pixelRatio: 3,
-        cacheBust: true,
-        backgroundColor: '#FFFFFF'
-      });
-      
-      // Create a new window with the printable content
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Kartu Peserta SSG</title>
-            <style>
-              @page {
-                size: 85.6mm 54mm;
-                margin: 0;
-              }
-              body {
-                margin: 0;
-                padding: 0;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              .card-container {
-                width: 85.6mm;
-                height: 54mm;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                page-break-after: always;
-              }
-              .card-img {
-                width: 85mm;
-                height: 53.5mm;
-                object-fit: contain;
-              }
-              @media print {
-                .no-print {
-                  display: none !important;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="card-container">
-              <img src="${frontCardImg}" class="card-img" />
-            </div>
-            <div class="card-container">
-              <img src="${backCardImg}" class="card-img" />
-            </div>
-            <script>
-              setTimeout(() => {
-                window.print();
-                window.close();
-              }, 1000);
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-    } catch (err) {
-      console.error('Error generating print content:', err);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  const handlePrint = useReactToPrint({
+    content: () => printRef.current,
+    pageStyle: `
+      @page {
+        size: 85.6mm 54mm; // Ukuran kartu
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    `,
+    onBeforeGetContent: () => {
+      setIsProcessing(true);
+      return Promise.resolve();
+    },
+    onAfterPrint: () => setIsProcessing(false)
+  });
 
   if (loading) {
     return (
@@ -197,8 +137,8 @@ export default function ECard() {
           
           {/* Preview cards */}
           <div className="flex flex-col md:flex-row gap-8 justify-center mb-10">
-            {/* Front Card Preview - Printable version */}
-            <div ref={frontCardRef} style={{ width: '85mm', height: '54mm' }} className="bg-blue-700 text-white rounded-xl overflow-hidden shadow-xl flex flex-col border-2 border-blue-800">
+            {/* Front Card Preview */}
+            <div style={{ width: '85mm', height: '54mm' }} className="bg-blue-700 text-white rounded-xl overflow-hidden shadow-xl flex flex-col border-2 border-blue-800">
               <div className="flex h-full">
                 <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center py-2 px-1">
                   <div className="bg-white p-1 rounded-lg mb-1">
@@ -208,10 +148,10 @@ export default function ECard() {
                       className="w-full h-auto"
                       bgColor="#FFFFFF"
                       fgColor="#1E3A8A"
-                      level="H" // Higher error correction
+                      level="H"
                     />
                   </div>
-                  <p className="text-center text-[8px] font-medium text-blue-100 mt-1">Scan untuk presensi</p>
+                  <p className="text-center text-[8px] font-medium text-blue-100 mt-1">Scan untuk verifikasi</p>
                 </div>
                 
                 <div className="w-3/5 pl-3 flex flex-col py-3 pr-2">
@@ -248,8 +188,8 @@ export default function ECard() {
               </div>
             </div>
 
-            {/* Back Card Preview - Printable version */}
-            <div ref={backCardRef} style={{ width: '85mm', height: '54mm' }} className="bg-white rounded-xl overflow-hidden shadow-xl flex flex-col border-2 border-gray-200">
+            {/* Back Card Preview */}
+            <div style={{ width: '85mm', height: '54mm' }} className="bg-white rounded-xl overflow-hidden shadow-xl flex flex-col border-2 border-gray-200">
               <div className="flex h-full flex-col">
                 <div className="flex items-center justify-between px-4 pt-3 pb-1 border-b border-gray-200">
                   <Image 
@@ -259,7 +199,12 @@ export default function ECard() {
                     height={16} 
                     className="h-auto"
                   />
-                  
+                  <Image 
+                    src="/img/logo_DT READY.png" 
+                    alt="DT Logo" 
+                    width={18} 
+                    height={18} 
+                  />
                 </div>
                 
                 <div className="text-center my-2">
@@ -278,6 +223,101 @@ export default function ECard() {
 
                 <div className="bg-blue-50 py-2 px-2 text-[8px] text-blue-800 font-semibold text-center border-t border-blue-200">
                   Kartu ini hanya berlaku selama program Santri Siap Guna {user?.angkatan || "2025"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Hidden print content */}
+          <div className="hidden">
+            <div ref={printRef} className="flex flex-col items-center justify-center">
+              {/* Front Card - Printable version */}
+              <div style={{ width: '85mm', height: '54mm' }} className="bg-blue-700 text-white rounded-xl overflow-hidden flex flex-col border-2 border-blue-800">
+                <div className="flex h-full">
+                  <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center py-2 px-1">
+                    <div className="bg-white p-1 rounded-lg mb-1">
+                      <QRCode 
+                        value={qrcode} 
+                        size={80} 
+                        className="w-full h-auto"
+                        bgColor="#FFFFFF"
+                        fgColor="#1E3A8A"
+                        level="H"
+                      />
+                    </div>
+                    <p className="text-center text-[8px] font-medium text-blue-100 mt-1">Scan untuk verifikasi</p>
+                  </div>
+                  
+                  <div className="w-3/5 pl-3 flex flex-col py-3 pr-2">
+                    <div className="flex items-center">
+                      <img 
+                        src="/img/logo_ssg.png" 
+                        alt="Logo" 
+                        width={24} 
+                        height={24} 
+                        className="mr-1"
+                      />
+                      <div>
+                        <h3 className="text-[12px] font-bold leading-none tracking-wide">SANTRI SIAP</h3>
+                        <h3 className="text-[12px] font-bold leading-none tracking-wide">GUNA</h3>
+                        <p className="text-[8px] text-white font-medium">KARTU PESERTA</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-grow flex flex-col justify-center mt-1">
+                      <h2 className="text-[14px] font-bold mb-1 text-white leading-tight">
+                        {user?.name || "MUHAMAD BRILLIAN HAIKAL"}
+                      </h2>
+                      
+                      <div className="space-y-1 mt-2">
+                        <div className="bg-blue-800 py-1 px-2 rounded-md text-[10px] font-medium">
+                          Peserta Angkatan {user?.angkatan || "2025"}
+                        </div>
+                        <div className="bg-blue-800 py-1 px-2 rounded-md text-[10px] font-medium">
+                          Pleton: {user?.pleton || "20"} / Grup {user?.grup || "B"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Back Card - Printable version */}
+              <div style={{ width: '85mm', height: '54mm' }} className="bg-white rounded-xl overflow-hidden flex flex-col border-2 border-gray-200 mt-4">
+                <div className="flex h-full flex-col">
+                  <div className="flex items-center justify-between px-4 pt-3 pb-1 border-b border-gray-200">
+                    <img 
+                      src="/img/logo_ssg.png" 
+                      alt="Santri Siap Guna Logo" 
+                      width={60} 
+                      height={16} 
+                      className="h-auto"
+                    />
+                    <img 
+                      src="/img/logo_DT READY.png" 
+                      alt="DT Logo" 
+                      width={18} 
+                      height={18} 
+                    />
+                  </div>
+                  
+                  <div className="text-center my-2">
+                    <h3 className="text-[10px] font-bold text-blue-900">ATURAN PENGGUNAAN KARTU</h3>
+                  </div>
+
+                  <div className="flex-grow px-4 overflow-visible pb-0">
+                    <ol className="text-[8px] text-gray-800 list-decimal ml-3 mt-0 space-y-1.5">
+                      <li className="font-medium leading-tight">Kartu ini adalah identitas resmi peserta SSG</li>
+                      <li className="font-medium leading-tight">Wajib dibawa saat kegiatan SSG berlangsung</li>
+                      <li className="font-medium leading-tight">Tunjukkan QR code untuk presensi kehadiran</li>
+                      <li className="font-medium leading-tight">Segera laporkan kehilangan kartu kepada panitia</li>
+                      <li className="font-medium leading-tight">Dilarang memodifikasi atau menggandakan kartu</li>
+                    </ol>
+                  </div>
+
+                  <div className="bg-blue-50 py-2 px-2 text-[8px] text-blue-800 font-semibold text-center border-t border-blue-200">
+                    Kartu ini hanya berlaku selama program Santri Siap Guna {user?.angkatan || "2025"}
+                  </div>
                 </div>
               </div>
             </div>
@@ -304,15 +344,15 @@ export default function ECard() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                   </svg>
-                  Cetak Kartu
+                  Cetak Kartu (1 Halaman)
                 </>
               )}
             </motion.button>
           </div>
 
           <div className="mt-6 text-center text-sm text-gray-500">
-            <p>Pastikan untuk mencetak kedua sisi kartu dengan ukuran 85.6mm × 54mm (standar kartu)</p>
-            <p className="mt-1">Gunakan kertas yang cukup tebal (minimal 260gsm) untuk hasil terbaik</p>
+            <p>Kedua sisi kartu akan dicetak dalam 1 halaman</p>
+            <p className="mt-1">Gunakan kertas yang cukup tebal (minimal 260gsm) dan cetak bolak-balik</p>
           </div>
         </div>
       </main>
