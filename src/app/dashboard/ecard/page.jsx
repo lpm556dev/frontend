@@ -15,8 +15,7 @@ export default function ECard() {
 
   const { user, loading, error, qrcode, fetchUserQRCode } = useAuthStore();
   const [isProcessing, setIsProcessing] = useState(false);
-  const frontCardRef = useRef(null);
-  const backCardRef = useRef(null);
+  const cardContainerRef = useRef(null);
 
   useEffect(() => {
     fetchUserQRCode();
@@ -87,19 +86,24 @@ export default function ECard() {
     setIsProcessing(true);
 
     try {
-      const frontClone = frontCardRef.current.cloneNode(true);
-      const backClone = backCardRef.current.cloneNode(true);
+      const containerClone = cardContainerRef.current.cloneNode(true);
+      
+      // Hapus tombol cetak dari clone
+      const printButton = containerClone.querySelector('button');
+      if (printButton) printButton.remove();
+      
+      // Hapus judul halaman dari clone
+      const pageTitle = containerClone.querySelector('h1');
+      if (pageTitle) pageTitle.remove();
 
-      sanitizeElements(frontClone);
-      sanitizeElements(backClone);
+      sanitizeElements(containerClone);
 
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'fixed';
       tempContainer.style.left = '-9999px';
       tempContainer.style.transform = 'scale(1)';
       tempContainer.style.background = '#ffffff';
-      tempContainer.appendChild(frontClone);
-      tempContainer.appendChild(backClone);
+      tempContainer.appendChild(containerClone);
       document.body.appendChild(tempContainer);
 
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -107,8 +111,7 @@ export default function ECard() {
 
       const pdf = new jsPDF({
         orientation: "landscape",
-        unit: "mm",
-        format: [85, 54]
+        unit: "mm"
       });
 
       const canvasOptions = {
@@ -119,12 +122,13 @@ export default function ECard() {
         allowTaint: true
       };
 
-      const frontCanvas = await html2canvas(frontClone, canvasOptions);
-      pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, 85, 54);
-
-      const backCanvas = await html2canvas(backClone, canvasOptions);
-      pdf.addPage([85, 54], 'landscape');
-      pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, 85, 54);
+      const canvas = await html2canvas(containerClone, canvasOptions);
+      
+      // Hitung rasio aspek untuk memastikan gambar pas di halaman PDF
+      const imgWidth = 280; // Lebar halaman PDF dalam mm (landscape)
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight);
 
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
@@ -159,9 +163,11 @@ export default function ECard() {
 
       <h1 className="text-2xl font-bold text-center mb-8">Kartu Peserta Digital</h1>
 
-      <div className="flex flex-col md:flex-row gap-8 justify-center">
+      <div 
+        ref={cardContainerRef}
+        className="flex flex-col md:flex-row gap-8 justify-center"
+      >
         <div
-          ref={frontCardRef}
           className="bg-blue-700 text-white rounded-xl overflow-hidden shadow-xl w-full md:w-[400px] h-[250px] flex"
         >
           <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center p-3">
@@ -190,7 +196,6 @@ export default function ECard() {
         </div>
 
         <div
-          ref={backCardRef}
           className="bg-white rounded-xl overflow-hidden shadow-xl w-full md:w-[400px] h-[250px] flex flex-col"
         >
           <div className="flex items-center justify-between px-4 pt-2 pb-1 border-b border-gray-100">
