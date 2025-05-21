@@ -7,12 +7,13 @@ import useAuthStore from '../../../stores/authStore';
 import QRCode from "react-qr-code";
 import { motion } from 'framer-motion';
 import { useReactToPrint } from 'react-to-print';
+import { toPng } from 'html-to-image';
 
 export default function ECard() {
   const { user, loading, error, qrcode, fetchUserQRCode } = useAuthStore();
   const [isProcessing, setIsProcessing] = useState(false);
-  const printRef = useRef();
-  const componentRef = useRef();
+  const frontCardRef = useRef();
+  const backCardRef = useRef();
 
   useEffect(() => {
     fetchUserQRCode();
@@ -22,35 +23,55 @@ export default function ECard() {
     window.history.back();
   };
 
-  const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
-    pageStyle: `
-      @page {
-        size: 85mm 54mm;
-        margin: 0;
-      }
-      @media print {
-        body {
-          margin: 0;
-          padding: 0;
-        }
-        .page-break {
-          page-break-after: always;
-        }
-      }
-    `,
-    onBeforeGetContent: () => {
-      setIsProcessing(true);
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve();
-        }, 500);
-      });
-    },
-    onAfterPrint: () => {
+  const handlePrint = async () => {
+    setIsProcessing(true);
+    
+    try {
+      // Convert cards to images
+      const frontCardImg = await toPng(frontCardRef.current);
+      const backCardImg = await toPng(backCardRef.current);
+      
+      // Create a new window with the printable content
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Kartu Peserta SSG</title>
+            <style>
+              @page {
+                size: 85mm 54mm;
+                margin: 0;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+              }
+              .card {
+                width: 85mm;
+                height: 54mm;
+                page-break-after: always;
+              }
+            </style>
+          </head>
+          <body>
+            <img src="${frontCardImg}" class="card" />
+            <img src="${backCardImg}" class="card" />
+            <script>
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 500);
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    } catch (err) {
+      console.error('Error generating print content:', err);
+    } finally {
       setIsProcessing(false);
     }
-  });
+  };
 
   if (loading) {
     return (
@@ -146,108 +167,9 @@ export default function ECard() {
           
           {/* Preview cards */}
           <div className="flex flex-col md:flex-row gap-8 justify-center mb-10">
-            {/* Front Card Preview */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              className="bg-blue-700 text-white rounded-xl overflow-hidden shadow-xl w-full md:w-[400px] h-[250px] flex flex-col"
-            >
+            {/* Front Card Preview - Printable version */}
+            <div ref={frontCardRef} style={{ width: '85mm', height: '54mm' }} className="bg-blue-700 text-white rounded-xl overflow-hidden shadow-xl flex flex-col">
               <div className="flex h-full">
-                <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center py-3 px-3">
-                  <div className="bg-white p-2 rounded-lg mb-2 shadow-md">
-                    <QRCode 
-                      value={qrcode} 
-                      size={120} 
-                      className="w-full h-auto"
-                    />
-                  </div>
-                  <p className="text-center text-xs font-medium text-blue-100">Scan untuk verifikasi</p>
-                </div>
-                
-                <div className="w-3/5 pl-3 flex flex-col py-4 pr-3">
-                  <div className="flex items-center">
-                    <Image 
-                      src="/img/logossg_white.png" 
-                      alt="Logo" 
-                      width={32} 
-                      height={32} 
-                      className="mr-2"
-                    />
-                    <div>
-                      <h3 className="text-lg font-bold leading-none tracking-wide">SANTRI SIAP</h3>
-                      <h3 className="text-lg font-bold leading-none tracking-wide">GUNA</h3>
-                      <p className="text-xs text-white font-medium">KARTU PESERTA</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex-grow flex flex-col justify-center mt-2">
-                    <h2 className="text-xl font-bold mb-2 text-white">
-                      {user?.name || "MUHAMAD BRILLIAN HAIKAL"}
-                    </h2>
-                    
-                    <div className="space-y-2">
-                      <div className="bg-blue-800 py-1.5 px-3 rounded-md text-sm font-medium">
-                        Peserta Angkatan 2025
-                      </div>
-                      <div className="bg-blue-800 py-1.5 px-3 rounded-md text-sm font-medium">
-                        Pleton: {user?.pleton || "20"} / Grup {user?.grup || "B"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Back Card Preview */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
-              className="bg-white rounded-xl overflow-hidden shadow-xl w-full md:w-[400px] h-[250px] flex flex-col"
-            >
-              <div className="flex h-full flex-col">
-                <div className="flex items-center justify-between px-4 pt-2 pb-1 border-b border-gray-100">
-                  <Image 
-                    src="/img/logo_ssg.png" 
-                    alt="Santri Siap Guna Logo" 
-                    width={80} 
-                    height={22} 
-                    className="h-auto"
-                  />
-                  <Image 
-                    src="/img/logo_DT READY.png" 
-                    alt="DT Logo" 
-                    width={24} 
-                    height={24} 
-                  />
-                </div>
-                
-                <div className="text-center my-1">
-                  <h3 className="text-sm font-bold text-blue-900">ATURAN PENGGUNAAN KARTU</h3>
-                </div>
-
-                <div className="flex-grow px-4 overflow-visible pb-1">
-                  <ol className="text-xs text-gray-800 list-decimal ml-4 mt-0 space-y-0.5">
-                    <li className="font-medium leading-tight">Kartu ini adalah identitas resmi peserta SSG</li>
-                    <li className="font-medium leading-tight">Wajib dibawa saat kegiatan SSG berlangsung</li>
-                    <li className="font-medium leading-tight">Tunjukkan QR code untuk presensi kehadiran</li>
-                    <li className="font-medium leading-tight">Segera laporkan kehilangan kartu kepada<br/>panitia</li>
-                  </ol>
-                </div>
-
-                <div className="bg-blue-50 py-1.5 px-4 text-xs text-blue-800 font-semibold text-center border-t border-blue-100">
-                  Kartu ini hanya berlaku selama program Santri Siap Guna 2025
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Printable content */}
-          <div style={{ display: "none" }}>
-            <div ref={componentRef}>
-              {/* Front Card for Printing */}
-              <div className="bg-blue-700 text-white w-[85mm] h-[54mm] flex">
                 <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center py-1 px-1">
                   <div className="bg-white p-1 rounded-lg mb-1">
                     <QRCode 
@@ -291,12 +213,11 @@ export default function ECard() {
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Page break */}
-              <div className="page-break"></div>
-
-              {/* Back Card for Printing */}
-              <div className="bg-white w-[85mm] h-[54mm] flex flex-col">
+            {/* Back Card Preview - Printable version */}
+            <div ref={backCardRef} style={{ width: '85mm', height: '54mm' }} className="bg-white rounded-xl overflow-hidden shadow-xl flex flex-col">
+              <div className="flex h-full flex-col">
                 <div className="flex items-center justify-between px-2 pt-1 pb-0 border-b border-gray-100">
                   <Image 
                     src="/img/logo_ssg.png" 
