@@ -249,8 +249,8 @@ export default function ECard() {
                   <Image
                     src="/img/logo_ssg.png"
                     alt="Santri Siap Guna Logo"
-                    width={60}
-                    height={16}
+                    width={50}
+                    height={13}
                     className="h-auto"
                   />
                 </div>
