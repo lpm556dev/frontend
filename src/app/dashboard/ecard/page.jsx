@@ -1,3 +1,4 @@
+// components/ECard.jsx
 "use client";
 
 import React, { useEffect, useState, useRef } from 'react';
@@ -10,6 +11,8 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
 export default function ECard() {
+  if (typeof window === "undefined") return null;
+
   const { user, loading, error, qrcode, fetchUserQRCode } = useAuthStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const frontCardRef = useRef(null);
