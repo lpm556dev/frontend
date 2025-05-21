@@ -26,50 +26,73 @@ export default function ECard() {
     setIsProcessing(true);
     
     try {
-      // Buat PDF baru dengan orientasi landscape
+      // Create PDF with landscape orientation
       const pdf = new jsPDF({
         orientation: "landscape",
         unit: "mm",
         format: [85, 54]
       });
 
-      // Tangkap kartu depan
-      const frontCard = document.getElementById('front-card');
-      const frontCanvas = await html2canvas(frontCard, {
+      // Options for html2canvas to avoid color parsing issues
+      const canvasOptions = {
         scale: 2,
         backgroundColor: null,
         logging: false,
-        useCORS: true
+        useCORS: true,
+        ignoreElements: (element) => {
+          // Ignore elements that might cause issues
+          return false;
+        }
+      };
+
+      // Capture front card
+      const frontCard = document.getElementById('front-card');
+      const frontCanvas = await html2canvas(frontCard, {
+        ...canvasOptions,
+        onclone: (clonedDoc) => {
+          // Modify styles for printing if needed
+          const clonedCard = clonedDoc.getElementById('front-card');
+          if (clonedCard) {
+            clonedCard.style.boxShadow = 'none';
+          }
+        }
       });
       const frontImg = frontCanvas.toDataURL('image/png');
 
-      // Tangkap kartu belakang
+      // Capture back card
       const backCard = document.getElementById('back-card');
       const backCanvas = await html2canvas(backCard, {
-        scale: 2,
-        backgroundColor: null,
-        logging: false,
-        useCORS: true
+        ...canvasOptions,
+        onclone: (clonedDoc) => {
+          // Modify styles for printing if needed
+          const clonedCard = clonedDoc.getElementById('back-card');
+          if (clonedCard) {
+            clonedCard.style.boxShadow = 'none';
+          }
+        }
       });
       const backImg = backCanvas.toDataURL('image/png');
 
-      // Tambahkan gambar ke PDF
+      // Add images to PDF
       pdf.addImage(frontImg, 'PNG', 0, 0, 85, 54);
       pdf.addPage([85, 54], 'landscape');
       pdf.addImage(backImg, 'PNG', 0, 0, 85, 54);
 
-      // Simpan PDF untuk diunduh
+      // Save PDF for download
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
       
-      // Buka PDF di tab baru untuk dicetak
+      // Open PDF in new window for printing
       const printWindow = window.open(pdfUrl);
-      printWindow.onload = function() {
-        printWindow.print();
-      };
+      if (printWindow) {
+        printWindow.onload = function() {
+          printWindow.print();
+        };
+      }
 
     } catch (err) {
       console.error('Error generating PDF:', err);
+      alert('Gagal membuat PDF. Silakan coba lagi atau gunakan browser lain.');
     } finally {
       setIsProcessing(false);
     }
@@ -168,16 +191,17 @@ export default function ECard() {
           <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">Kartu Peserta Digital</h1>
           
           <div className="flex flex-col md:flex-row gap-8 justify-center">
-            {/* Kartu Depan */}
+            {/* Front Card */}
             <motion.div 
               id="front-card"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3, delay: 0.1 }}
               className="bg-blue-700 text-white rounded-xl overflow-hidden shadow-xl w-full md:w-[400px] h-[250px] flex flex-col"
+              style={{ backgroundColor: '#1d4ed8' }} // Using hex color to avoid oklch issues
             >
               <div className="flex h-full">
-                <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center py-3 px-3">
+                <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center py-3 px-3" style={{ backgroundColor: '#1e3a8a' }}>
                   <div className="bg-white p-2 rounded-lg mb-2 shadow-md">
                     <QRCode 
                       value={qrcode} 
@@ -210,10 +234,10 @@ export default function ECard() {
                     </h2>
                     
                     <div className="space-y-2">
-                      <div className="bg-blue-800 py-1.5 px-3 rounded-md text-sm font-medium">
+                      <div className="bg-blue-800 py-1.5 px-3 rounded-md text-sm font-medium" style={{ backgroundColor: '#1e40af' }}>
                         Peserta Angkatan 2025
                       </div>
-                      <div className="bg-blue-800 py-1.5 px-3 rounded-md text-sm font-medium">
+                      <div className="bg-blue-800 py-1.5 px-3 rounded-md text-sm font-medium" style={{ backgroundColor: '#1e40af' }}>
                         Pleton: {user?.pleton || "20"} / Grup {user?.grup || "B"}
                       </div>
                     </div>
@@ -222,7 +246,7 @@ export default function ECard() {
               </div>
             </motion.div>
 
-            {/* Kartu Belakang */}
+            {/* Back Card */}
             <motion.div 
               id="back-card"
               initial={{ opacity: 0, scale: 0.9 }}
@@ -272,6 +296,7 @@ export default function ECard() {
               onClick={generateAndPrintPDF}
               disabled={isProcessing}
               className="bg-blue-800 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-900 transition-colors flex items-center justify-center shadow-sm"
+              style={{ backgroundColor: '#1e40af' }}
             >
               {isProcessing ? (
                 <>
