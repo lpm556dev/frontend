@@ -13,6 +13,7 @@ export default function ECard() {
   const { user, loading, error, qrcode, fetchUserQRCode } = useAuthStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const printRef = useRef(null);
+  const qrCodeRef = useRef(null);
 
   useEffect(() => {
     fetchUserQRCode();
@@ -33,43 +34,94 @@ export default function ECard() {
         format: [85, 54]
       });
 
-      // Options for html2canvas to avoid color parsing issues
-      const canvasOptions = {
+      // Create a temporary container for PDF generation
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '0';
+      document.body.appendChild(tempContainer);
+
+      // Get QR code data URL
+      const qrCodeDataUrl = qrCodeRef.current?.toDataURL() || '';
+
+      // Front card HTML with basic styling
+      const frontCardHTML = `
+        <div id="pdf-front-card" style="width: 400px; height: 250px; background-color: #1d4ed8; color: white; display: flex; border-radius: 12px; overflow: hidden;">
+          <div style="width: 40%; background-color: #1e3a8a; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 12px;">
+            <div style="background: white; padding: 8px; border-radius: 8px; margin-bottom: 8px;">
+              <img src="${qrCodeDataUrl}" width="120" height="120" />
+            </div>
+            <p style="text-align: center; font-size: 12px; font-weight: 500; color: #bfdbfe;">Scan untuk verifikasi</p>
+          </div>
+          <div style="width: 60%; padding-left: 12px; display: flex; flex-direction: column; padding: 16px 12px 16px 12px;">
+            <div style="display: flex; align-items: center;">
+              <img src="/img/logossg_white.png" alt="Logo" width="32" height="32" style="margin-right: 8px;" />
+              <div>
+                <h3 style="font-size: 18px; font-weight: bold; line-height: 1; letter-spacing: 0.05em;">SANTRI SIAP</h3>
+                <h3 style="font-size: 18px; font-weight: bold; line-height: 1; letter-spacing: 0.05em;">GUNA</h3>
+                <p style="font-size: 12px; color: white; font-weight: 500;">KARTU PESERTA</p>
+              </div>
+            </div>
+            <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center; margin-top: 8px;">
+              <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 8px; color: white;">
+                ${user?.name || "MUHAMAD BRILLIAN HAIKAL"}
+              </h2>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="background-color: #1e40af; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 500;">
+                  Peserta Angkatan 2025
+                </div>
+                <div style="background-color: #1e40af; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 500;">
+                  Pleton: ${user?.pleton || "20"} / Grup ${user?.grup || "B"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Back card HTML with basic styling
+      const backCardHTML = `
+        <div id="pdf-back-card" style="width: 400px; height: 250px; background-color: white; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 4px 16px; border-bottom: 1px solid #f3f4f6;">
+            <img src="/img/logo_ssg.png" alt="Santri Siap Guna Logo" width="80" height="22" />
+            <img src="/img/logo_DT READY.png" alt="DT Logo" width="24" height="24" />
+          </div>
+          <div style="text-align: center; margin: 4px 0;">
+            <h3 style="font-size: 14px; font-weight: bold; color: #1e40af;">ATURAN PENGGUNAAN KARTU</h3>
+          </div>
+          <div style="flex-grow: 1; padding: 0 16px 4px 16px; overflow: visible;">
+            <ol style="font-size: 12px; color: #1f2937; list-style-type: decimal; margin-left: 16px; margin-top: 0; display: flex; flex-direction: column; gap: 2px;">
+              <li style="font-weight: 500; line-height: 1.2;">Kartu ini adalah identitas resmi peserta SSG</li>
+              <li style="font-weight: 500; line-height: 1.2;">Wajib dibawa saat kegiatan SSG berlangsung</li>
+              <li style="font-weight: 500; line-height: 1.2;">Tunjukkan QR code untuk presensi kehadiran</li>
+              <li style="font-weight: 500; line-height: 1.2;">Segera laporkan kehilangan kartu kepada panitia</li>
+            </ol>
+          </div>
+          <div style="background-color: #eff6ff; padding: 6px 16px; font-size: 12px; color: #1e40af; font-weight: 600; text-align: center; border-top: 1px solid #dbeafe;">
+            Kartu ini hanya berlaku selama program Santri Siap Guna 2025
+          </div>
+        </div>
+      `;
+
+      tempContainer.innerHTML = frontCardHTML + backCardHTML;
+
+      // Capture front card
+      const frontCard = document.getElementById('pdf-front-card');
+      const frontCanvas = await html2canvas(frontCard, {
         scale: 2,
         backgroundColor: null,
         logging: false,
-        useCORS: true,
-        ignoreElements: (element) => {
-          // Ignore elements that might cause issues
-          return false;
-        }
-      };
-
-      // Capture front card
-      const frontCard = document.getElementById('front-card');
-      const frontCanvas = await html2canvas(frontCard, {
-        ...canvasOptions,
-        onclone: (clonedDoc) => {
-          // Modify styles for printing if needed
-          const clonedCard = clonedDoc.getElementById('front-card');
-          if (clonedCard) {
-            clonedCard.style.boxShadow = 'none';
-          }
-        }
+        useCORS: true
       });
       const frontImg = frontCanvas.toDataURL('image/png');
 
       // Capture back card
-      const backCard = document.getElementById('back-card');
+      const backCard = document.getElementById('pdf-back-card');
       const backCanvas = await html2canvas(backCard, {
-        ...canvasOptions,
-        onclone: (clonedDoc) => {
-          // Modify styles for printing if needed
-          const clonedCard = clonedDoc.getElementById('back-card');
-          if (clonedCard) {
-            clonedCard.style.boxShadow = 'none';
-          }
-        }
+        scale: 2,
+        backgroundColor: null,
+        logging: false,
+        useCORS: true
       });
       const backImg = backCanvas.toDataURL('image/png');
 
@@ -78,11 +130,13 @@ export default function ECard() {
       pdf.addPage([85, 54], 'landscape');
       pdf.addImage(backImg, 'PNG', 0, 0, 85, 54);
 
-      // Save PDF for download
+      // Clean up
+      document.body.removeChild(tempContainer);
+
+      // Save and open PDF
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
       
-      // Open PDF in new window for printing
       const printWindow = window.open(pdfUrl);
       if (printWindow) {
         printWindow.onload = function() {
@@ -198,12 +252,12 @@ export default function ECard() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3, delay: 0.1 }}
               className="bg-blue-700 text-white rounded-xl overflow-hidden shadow-xl w-full md:w-[400px] h-[250px] flex flex-col"
-              style={{ backgroundColor: '#1d4ed8' }} // Using hex color to avoid oklch issues
             >
               <div className="flex h-full">
-                <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center py-3 px-3" style={{ backgroundColor: '#1e3a8a' }}>
+                <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center py-3 px-3">
                   <div className="bg-white p-2 rounded-lg mb-2 shadow-md">
                     <QRCode 
+                      ref={qrCodeRef}
                       value={qrcode} 
                       size={120} 
                       className="w-full h-auto"
@@ -234,10 +288,10 @@ export default function ECard() {
                     </h2>
                     
                     <div className="space-y-2">
-                      <div className="bg-blue-800 py-1.5 px-3 rounded-md text-sm font-medium" style={{ backgroundColor: '#1e40af' }}>
+                      <div className="bg-blue-800 py-1.5 px-3 rounded-md text-sm font-medium">
                         Peserta Angkatan 2025
                       </div>
-                      <div className="bg-blue-800 py-1.5 px-3 rounded-md text-sm font-medium" style={{ backgroundColor: '#1e40af' }}>
+                      <div className="bg-blue-800 py-1.5 px-3 rounded-md text-sm font-medium">
                         Pleton: {user?.pleton || "20"} / Grup {user?.grup || "B"}
                       </div>
                     </div>
@@ -296,7 +350,6 @@ export default function ECard() {
               onClick={generateAndPrintPDF}
               disabled={isProcessing}
               className="bg-blue-800 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-900 transition-colors flex items-center justify-center shadow-sm"
-              style={{ backgroundColor: '#1e40af' }}
             >
               {isProcessing ? (
                 <>
