@@ -219,8 +219,7 @@ export default function ECard() {
                       className="mr-1"
                     />
                     <div>
-                      <h3 className="text-[10px] font-bold leading-none tracking-wide">SANTRI SIAP</h3>
-                      <h3 className="text-[10px] font-bold leading-none tracking-wide">GUNA</h3>
+                      <h3 className="text-[12px] font-bold leading-none tracking-wide">SANTRI SIAP GUNA</h3>
                       <p className="text-[8px] text-white font-medium">KARTU PESERTA</p>
                     </div>
                   </div>
