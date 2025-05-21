@@ -242,9 +242,9 @@ export default function ECard() {
             </motion.div>
           </div>
 
-          {/* Printable content (hidden) */}
+          {/* Printable content */}
           <div style={{ display: "none" }}>
-            <div ref={printRef} className="print-container">
+            <div ref={printRef}>
               {/* Front Card for Printing */}
               <div className="bg-blue-700 text-white w-[85mm] h-[54mm] flex">
                 <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center py-1 px-1">
