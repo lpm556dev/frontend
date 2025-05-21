@@ -211,7 +211,7 @@ export default function ECard() {
                       level="H" // Higher error correction
                     />
                   </div>
-                  <p className="text-center text-[8px] font-medium text-blue-100 mt-1">Scan untuk verifikasi</p>
+                  <p className="text-center text-[8px] font-medium text-blue-100 mt-1">Scan untuk presensi</p>
                 </div>
                 
                 <div className="w-3/5 pl-3 flex flex-col py-3 pr-2">
