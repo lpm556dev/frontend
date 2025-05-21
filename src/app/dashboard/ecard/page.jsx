@@ -37,7 +37,7 @@ export default function ECard() {
       printContainer.style.alignItems = 'center';
       printContainer.style.gap = '32px';
       printContainer.style.padding = '20px';
-      printContainer.style.backgroundColor = '#f3f4f6'; // Match website background
+      printContainer.style.backgroundColor = '#f3f4f6';
       printContainer.style.zIndex = '9999';
       
       // Clone the cards
@@ -56,7 +56,7 @@ export default function ECard() {
       // Wait for rendering
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Capture the container
+      // Capture the container with ignoreCSSColorFunction
       const canvas = await html2canvas(printContainer, {
         scale: 2,
         logging: true,
@@ -66,7 +66,8 @@ export default function ECard() {
         scrollX: 0,
         scrollY: 0,
         windowWidth: document.documentElement.scrollWidth,
-        windowHeight: document.documentElement.scrollHeight
+        windowHeight: document.documentElement.scrollHeight,
+        ignoreCSSColorFunction: true // Fix for OKLCH error
       });
 
       // Calculate PDF dimensions (A4 landscape ratio)
@@ -74,7 +75,7 @@ export default function ECard() {
       const pdfHeight = 210; // mm
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight) * 0.95; // 95% of page
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight) * 0.95;
       
       const pdf = new jsPDF({
         orientation: "landscape",
@@ -83,8 +84,8 @@ export default function ECard() {
       });
 
       pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 
-        (pdfWidth - imgWidth * ratio) / 2, // Center horizontally
-        (pdfHeight - imgHeight * ratio) / 2, // Center vertically
+        (pdfWidth - imgWidth * ratio) / 2,
+        (pdfHeight - imgHeight * ratio) / 2,
         imgWidth * ratio, 
         imgHeight * ratio
       );
@@ -125,7 +126,7 @@ export default function ECard() {
       <h1 className="text-2xl font-bold text-center mb-8">Kartu Peserta Digital</h1>
 
       <div className="flex flex-col md:flex-row gap-8 justify-center">
-        {/* Front Card - Tampilan Persis seperti di Website */}
+        {/* Front Card */}
         <div
           ref={frontCardRef}
           className="bg-blue-700 text-white rounded-xl overflow-hidden shadow-xl w-full md:w-[400px] h-[250px] flex"
@@ -136,7 +137,7 @@ export default function ECard() {
                 value={qrcode} 
                 size={120} 
                 style={{ width: '120px', height: '120px' }} 
-                fgColor="#1e40af" // Warna biru yang sama dengan tema
+                fgColor="#1e40af"
               />
             </div>
             <p className="text-xs font-medium text-blue-100 text-center">Scan untuk verifikasi</p>
@@ -166,7 +167,7 @@ export default function ECard() {
           </div>
         </div>
 
-        {/* Back Card - Tampilan Persis seperti di Website */}
+        {/* Back Card */}
         <div
           ref={backCardRef}
           className="bg-white rounded-xl overflow-hidden shadow-xl w-full md:w-[400px] h-[250px] flex flex-col"
