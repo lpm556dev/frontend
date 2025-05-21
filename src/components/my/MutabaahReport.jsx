@@ -99,92 +99,92 @@ const MutabaahReport = ({ user, onClose }) => {
   };
 
   const downloadReport = () => {
-    try {
-      // Header information
-      let csvContent = "Laporan Lengkap Mutaba'ah Yaumiyah\n\n";
-      csvContent += `Nama,${user?.name || '-'}\n`;
-      csvContent += `Periode,${months.find(m => m.value === month)?.label} ${year}\n`;
-      csvContent += `Tanggal Laporan,${new Date().toLocaleDateString('id-ID')}\n`;
-      csvContent += `Total Data,${allUserData.length}\n\n`;
+  try {
+    // Header information
+    let csvContent = "Laporan Lengkap Mutaba'ah Yaumiyah\n\n";
+    csvContent += `Nama,${user?.name || '-'}\n`;
+    csvContent += `Periode,${months.find(m => m.value === month)?.label} ${year}\n`;
+    csvContent += `Tanggal Laporan,${new Date().toLocaleDateString('id-ID')}\n`;
+    csvContent += `Total Data,${allUserData.length}\n\n`;
 
-      // Main table headers
-      const headers = [
-        "No", 
-        "Tanggal", 
-        "Hijriah", 
-        "Sholat Wajib", 
-        "Tahajud", 
-        "Dhuha", 
-        "Shaum Sunnah", 
-        ...(user?.role === 0 ? ["Haid"] : []),
-        "Tilawah Quran",
-        "Terjemah Quran",
-        "Dzikir Pagi/Petang",
-        "Istighfar 1000x",
-        "Sholawat 100x",
-        "Menyimak MQ Pagi"
+    // Main table headers
+    const headers = [
+      "No", 
+      "Tanggal", 
+      "Hijriah", 
+      "Sholat Wajib", 
+      "Tahajud", 
+      "Dhuha", 
+      "Shaum Sunnah", 
+      ...(user?.role === 0 ? ["Haid"] : []),
+      "Tilawah Quran",
+      "Terjemah Quran",
+      "Dzikir Pagi/Petang",
+      "Istighfar 1000x",
+      "Sholawat 100x",
+      "Menyimak MQ Pagi"
+    ];
+
+    // Add headers with proper formatting
+    csvContent += headers.join(',') + '\n';
+
+    // Add data rows
+    allUserData.forEach((data, index) => {
+      const row = [
+        index + 1,
+        `"${new Date(data.date).toLocaleDateString('id-ID')}"`,
+        `"${formatHijriDate(data.date)}"`,
+        data.sholat_wajib > 0 ? `${data.sholat_wajib}/5` : '0/5',
+        data.sholat_tahajud > 0 ? 'Ya' : 'Tidak',
+        data.sholat_dhuha > 0 ? `${data.sholat_dhuha} rakaat` : 'Tidak',
+        data.shaum_sunnah > 0 ? 'Ya' : 'Tidak',
+        ...(user?.role === 0 ? [data.haid > 0 ? 'Ya' : 'Tidak'] : []),
+        data.tilawah_quran > 0 ? 'Ya' : 'Tidak',
+        data.terjemah_quran > 0 ? 'Ya' : 'Tidak',
+        data.dzikir_pagi_petang > 0 ? 'Ya' : 'Tidak',
+        data.istighfar_1000x > 0 ? 'Ya' : 'Tidak',
+        data.sholawat_100x > 0 ? 'Ya' : 'Tidak',
+        data.menyimak_mq_pagi > 0 ? 'Ya' : 'Tidak'
       ];
+      csvContent += row.join(',') + '\n';
+    });
 
-      // Add headers with proper formatting
-      csvContent += headers.join(',') + '\n';
+    // Add summary statistics
+    const stats = calculateStatistics();
+    csvContent += '\n\nStatistik Ringkasan\n\n';
+    
+    const summaryData = [
+      ['Sholat Wajib (Rata-rata)', `${stats.avgSholatWajib}/5`],
+      ['Tahajud (Hari)', `${stats.tahajudDays}/${allUserData.length}`],
+      ['Dhuha (Hari)', `${stats.dhuhaDays}/${allUserData.length}`],
+      ['Shaum Sunnah (Hari)', `${stats.shaumDays}/${allUserData.length}`],
+      ...(user?.role === 0 ? [['Haid (Hari)', `${stats.haidDays}/${allUserData.length}`]] : []),
+      ['Tilawah Quran (Hari)', `${stats.tilawahDays}/${allUserData.length}`],
+      ['Terjemah Quran (Hari)', `${stats.terjemahDays}/${allUserData.length}`],
+      ['Istighfar 1000x (Hari)', `${stats.istighfarCompleted}/${allUserData.length}`],
+      ['Sholawat 100x (Hari)', `${stats.sholawatCompleted}/${allUserData.length}`],
+      ['MQ Pagi (Hari)', `${stats.mqDays}/${allUserData.length}`]
+    ];
 
-      // Add data rows
-      allUserData.forEach((data, index) => {
-        const row = [
-          index + 1,
-          `"${new Date(data.date).toLocaleDateString('id-ID')}"`,
-          `"${formatHijriDate(data.date)}"`,
-          data.sholat_wajib > 0 ? `${data.sholat_wajib}/5` : '0/5',
-          data.sholat_tahajud > 0 ? 'Ya' : 'Tidak',
-          data.sholat_dhuha > 0 ? `${data.sholat_dhuha} rakaat` : 'Tidak',
-          data.shaum_sunnah > 0 ? 'Ya' : 'Tidak',
-          ...(user?.role === 0 ? [data.haid > 0 ? 'Ya' : 'Tidak'] : []),
-          data.tilawah_quran > 0 ? 'Ya' : 'Tidak',
-          data.terjemah_quran > 0 ? 'Ya' : 'Tidak',
-          data.dzikir_pagi_petang > 0 ? 'Ya' : 'Tidak',
-          data.istighfar_1000x > 0 ? 'Ya' : 'Tidak',
-          data.sholawat_100x > 0 ? 'Ya' : 'Tidak',
-          data.menyimak_mq_pagi > 0 ? 'Ya' : 'Tidak'
-        ];
-        csvContent += row.join(',') + '\n';
-      });
+    summaryData.forEach(item => {
+      csvContent += `${item[0]},${item[1]}\n`;
+    });
 
-      // Add summary statistics
-      const stats = calculateStatistics();
-      csvContent += '\n\nStatistik Ringkasan\n\n';
-      
-      const summaryData = [
-        ['Sholat Wajib (Rata-rata)', `${stats.avgSholatWajib}/5`],
-        ['Tahajud (Hari)', `${stats.tahajudDays}/${allUserData.length}`],
-        ['Dhuha (Hari)', `${stats.dhuhaDays}/${allUserData.length}`],
-        ['Shaum Sunnah (Hari)', `${stats.shaumDays}/${allUserData.length}`],
-        ...(user?.role === 0 ? [['Haid (Hari)', `${stats.haidDays}/${allUserData.length}`]] : []),
-        ['Tilawah Quran (Hari)', `${stats.tilawahDays}/${allUserData.length}`],
-        ['Terjemah Quran (Hari)', `${stats.terjemahDays}/${allUserData.length}`],
-        ['Istighfar 1000x (Hari)', `${stats.istighfarCompleted}/${allUserData.length}`],
-        ['Sholawat 100x (Hari)', `${stats.sholawatCompleted}/${allUserData.length}`],
-        ['MQ Pagi (Hari)', `${stats.mqDays}/${allUserData.length}`]
-      ];
-
-      summaryData.forEach(item => {
-        csvContent += `${item[0]},${item[1]}\n`;
-      });
-
-      // Create and download the file
-      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `laporan_mutabaah_${user?.name || 'user'}_${months.find(m => m.value === month)?.label}_${year}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('Error downloading report:', error);
-      toast.error('Gagal mengunduh laporan');
-    }
-  };
+    // Create and download the file
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `laporan_mutabaah_${user?.name || 'user'}_${months.find(m => m.value === month)?.label}_${year}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (error) {
+    console.error('Error downloading report:', error);
+    toast.error('Gagal mengunduh laporan');
+  }
+};
 
   const calculateStatistics = () => {
     if (allUserData.length === 0) {
