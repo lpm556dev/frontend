@@ -12,7 +12,7 @@ import { jsPDF } from 'jspdf';
 // Static image imports
 import logoSsgWhite from '../../../../public/img/logossg_white.png';
 import logoSsg from '../../../../public/img/logo_ssg.png';
-import logoDtReady from '../../../../public/img/logo_DT READY.png';
+import logoDtReady from '../../../../public/img/logo_DT_READY.png';
 
 export default function ECard() {
   if (typeof window === "undefined") return null;
@@ -26,182 +26,142 @@ export default function ECard() {
     fetchUserQRCode();
   }, [fetchUserQRCode]);
 
-  const replaceUnsupportedStyles = (element) => {
-    if (!element || !element.style) return;
-
-    const colorMap = {
-      'oklch(0.9645 0.018 252.58)': '#eff6ff',
-      'oklch(0.9645 0.018 252.58 / 1)': '#eff6ff',
-      'oklch(0.9645 0.018 252.58 / var(--tw-bg-opacity))': '#eff6ff',
-      'oklch(0.964 0.02 252.57)': '#eff6ff',
-      'oklch(0.96 0.02 252.57)': '#eff6ff',
-    };
-
-    const styleProps = [
-      'backgroundColor',
-      'color',
-      'borderColor',
-      'borderTopColor',
-      'borderRightColor',
-      'borderBottomColor',
-      'borderLeftColor',
-      'fill',
-      'stroke'
-    ];
-
-    styleProps.forEach(prop => {
-      const value = element.style[prop];
-      if (value && typeof value === 'string' && value.includes('oklch')) {
-        for (const [oklch, hex] of Object.entries(colorMap)) {
-          if (value.includes(oklch)) {
-            element.style[prop] = value.replace(oklch, hex);
-            break;
-          }
-        }
-      }
-    });
-
-    if (element.children) {
-      Array.from(element.children).forEach(child => replaceUnsupportedStyles(child));
-    }
-
-    if (element instanceof SVGElement) {
-      const attributes = ['fill', 'stroke', 'stop-color'];
-      attributes.forEach(attr => {
-        const value = element.getAttribute(attr);
-        if (value && value.includes('oklch')) {
-          for (const [oklch, hex] of Object.entries(colorMap)) {
-            if (value.includes(oklch)) {
-              element.setAttribute(attr, value.replace(oklch, hex));
-              break;
-            }
-          }
-        }
-      });
-    }
-  };
-
   const generateAndPrintPDF = async () => {
     setIsProcessing(true);
 
     try {
-      const printContainer = document.createElement('div');
-      printContainer.style.position = 'fixed';
-      printContainer.style.left = '0';
-      printContainer.style.top = '0';
-      printContainer.style.width = '100vw';
-      printContainer.style.height = '100vh';
-      printContainer.style.display = 'flex';
-      printContainer.style.justifyContent = 'center';
-      printContainer.style.alignItems = 'center';
-      printContainer.style.gap = '32px';
-      printContainer.style.padding = '20px';
-      printContainer.style.backgroundColor = '#f3f4f6';
-      printContainer.style.zIndex = '9999';
-      
+      // 1. Clone the cards
       const frontClone = frontCardRef.current.cloneNode(true);
       const backClone = backCardRef.current.cloneNode(true);
       
+      // 2. Remove shadows and fix styles for printing
       frontClone.style.boxShadow = 'none';
       backClone.style.boxShadow = 'none';
+      frontClone.style.margin = '0';
+      backClone.style.margin = '0';
       
-      // Replace Next.js Image components with regular img for PDF generation
+      // 3. Replace Next.js Image components with regular img tags
       const replaceNextImages = (node) => {
-        const images = node.querySelectorAll('img[data-nimg]');
-        images.forEach(img => {
-          const regularImg = document.createElement('img');
-          regularImg.src = img.src;
-          regularImg.alt = img.alt;
-          regularImg.width = img.width;
-          regularImg.height = img.height;
-          regularImg.style.width = '100%';
-          regularImg.style.height = 'auto';
-          img.replaceWith(regularImg);
+        const nextImages = node.querySelectorAll('span[data-nimg]');
+        nextImages.forEach((span) => {
+          const img = span.querySelector('img');
+          if (img) {
+            const newImg = document.createElement('img');
+            newImg.src = img.src;
+            newImg.alt = img.alt;
+            newImg.width = img.width;
+            newImg.height = img.height;
+            newImg.style.width = '100%';
+            newImg.style.height = 'auto';
+            span.parentNode.replaceChild(newImg, span);
+          }
         });
       };
 
       replaceNextImages(frontClone);
       replaceNextImages(backClone);
-      
-      replaceUnsupportedStyles(frontClone);
-      replaceUnsupportedStyles(backClone);
+
+      // 4. Create print container
+      const printContainer = document.createElement('div');
+      printContainer.style.position = 'fixed';
+      printContainer.style.left = '-9999px';
+      printContainer.style.top = '0';
+      printContainer.style.display = 'flex';
+      printContainer.style.flexDirection = 'column';
+      printContainer.style.gap = '20px';
+      printContainer.style.padding = '20px';
+      printContainer.style.backgroundColor = 'white';
+      printContainer.style.zIndex = '9999';
       
       printContainer.appendChild(frontClone);
       printContainer.appendChild(backClone);
       document.body.appendChild(printContainer);
 
-      // Wait for images to load
-      const images = printContainer.getElementsByTagName('img');
+      // 5. Wait for images to load
+      const images = printContainer.querySelectorAll('img');
       await Promise.all(Array.from(images).map(img => {
         if (!img.complete) {
-          return new Promise((resolve, reject) => {
+          return new Promise((resolve) => {
             img.onload = resolve;
-            img.onerror = () => {
-              console.warn('Image failed to load:', img.src);
-              resolve(); // Continue even if some images fail
-            };
+            img.onerror = resolve; // Continue even if image fails to load
           });
         }
         return Promise.resolve();
       }));
 
-      await new Promise(resolve => setTimeout(resolve, 500));
-      await document.fonts.ready;
-      
+      // 6. Generate PDF
       const canvas = await html2canvas(printContainer, {
         scale: 2,
         logging: false,
         useCORS: true,
         backgroundColor: null,
-        allowTaint: true,
         scrollX: 0,
         scrollY: 0,
-        windowWidth: document.documentElement.scrollWidth,
-        windowHeight: document.documentElement.scrollHeight
       });
 
+      // 7. Create PDF document
       const pdf = new jsPDF({
         orientation: "landscape",
         unit: "mm",
         format: "a4"
       });
 
+      const imgData = canvas.toDataURL('image/png');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgRatio = Math.min(
-        (pdfWidth * 0.95) / canvas.width, 
-        (pdfHeight * 0.95) / canvas.height
-      );
-      const imgWidth = canvas.width * imgRatio;
-      const imgHeight = canvas.height * imgRatio;
-      const xPos = (pdfWidth - imgWidth) / 2;
-      const yPos = (pdfHeight - imgHeight) / 2;
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const finalWidth = imgWidth * ratio;
+      const finalHeight = imgHeight * ratio;
+      const xPos = (pdfWidth - finalWidth) / 2;
+      const yPos = (pdfHeight - finalHeight) / 2;
 
-      pdf.addImage(
-        canvas.toDataURL('image/png', 1.0), 
-        'PNG', 
-        xPos, 
-        yPos, 
-        imgWidth, 
-        imgHeight
-      );
-
+      pdf.addImage(imgData, 'PNG', xPos, yPos, finalWidth, finalHeight);
+      
+      // 8. Clean up
       document.body.removeChild(printContainer);
 
+      // 9. Open print dialog
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
-      const printWindow = window.open(pdfUrl);
       
-      if (printWindow) {
-        printWindow.onload = () => {
-          printWindow.print();
+      // For mobile devices
+      if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+        const link = document.createElement('a');
+        link.href = pdfUrl;
+        link.download = 'kartu-peserta.pdf';
+        link.click();
+        setTimeout(() => {
           URL.revokeObjectURL(pdfUrl);
-        };
+        }, 100);
+      } 
+      // For desktop
+      else {
+        const printWindow = window.open(pdfUrl);
+        if (printWindow) {
+          printWindow.onload = () => {
+            printWindow.print();
+            setTimeout(() => {
+              URL.revokeObjectURL(pdfUrl);
+              printWindow.close();
+            }, 1000);
+          };
+        } else {
+          // Fallback if popup is blocked
+          const link = document.createElement('a');
+          link.href = pdfUrl;
+          link.download = 'kartu-peserta.pdf';
+          link.click();
+          setTimeout(() => {
+            URL.revokeObjectURL(pdfUrl);
+          }, 100);
+        }
       }
 
     } catch (err) {
       console.error('PDF Generation Error:', err);
-      alert(`Gagal membuat PDF. Error: ${err.message}\n\nPastikan:\n1. Menggunakan browser terbaru (Chrome/Firefox)\n2. Tidak menggunakan mode penyamaran\n3. Mengizinkan pop-up untuk situs ini`);
+      alert(`Gagal membuat PDF. Silakan coba lagi atau hubungi admin.\nError: ${err.message}`);
     } finally {
       setIsProcessing(false);
     }
