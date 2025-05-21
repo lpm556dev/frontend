@@ -12,7 +12,7 @@ import { jsPDF } from 'jspdf';
 // Static image imports
 import logoSsgWhite from '../../../../public/img/logossg_white.png';
 import logoSsg from '../../../../public/img/logo_ssg.png';
-import logoDtReady from '../../../../public/img/logo_DT_READY.png';
+import logoDtReady from '../../../../public/img/logo_DT READY.png';
 
 export default function ECard() {
   if (typeof window === "undefined") return null;
