@@ -21,11 +21,72 @@ export default function ECard() {
     fetchUserQRCode();
   }, [fetchUserQRCode]);
 
+  const replaceUnsupportedStyles = (element) => {
+    if (!element || !element.style) return;
+
+    // Mapping warna oklch ke hex
+    const colorMap = {
+      'oklch(0.9645 0.018 252.58)': '#eff6ff', // bg-blue-50
+      'oklch(0.9645 0.018 252.58 / 1)': '#eff6ff',
+      'oklch(0.9645 0.018 252.58 / var(--tw-bg-opacity))': '#eff6ff',
+      'oklch(0.964 0.02 252.57)': '#eff6ff',
+      'oklch(0.96 0.02 252.57)': '#eff6ff',
+      // Tambahkan mapping lain jika diperlukan
+    };
+
+    // Properti style yang perlu diperiksa
+    const styleProps = [
+      'backgroundColor',
+      'color',
+      'borderColor',
+      'borderTopColor',
+      'borderRightColor',
+      'borderBottomColor',
+      'borderLeftColor',
+      'fill',
+      'stroke'
+    ];
+
+    // Ganti warna yang tidak didukung
+    styleProps.forEach(prop => {
+      const value = element.style[prop];
+      if (value && typeof value === 'string' && value.includes('oklch')) {
+        for (const [oklch, hex] of Object.entries(colorMap)) {
+          if (value.includes(oklch)) {
+            element.style[prop] = value.replace(oklch, hex);
+            break;
+          }
+        }
+      }
+    });
+
+    // Proses anak-anak elemen
+    if (element.children) {
+      Array.from(element.children).forEach(child => replaceUnsupportedStyles(child));
+    }
+
+    // Tangani SVG elements khusus
+    if (element instanceof SVGElement) {
+      const attributes = ['fill', 'stroke', 'stop-color'];
+      attributes.forEach(attr => {
+        const value = element.getAttribute(attr);
+        if (value && value.includes('oklch')) {
+          for (const [oklch, hex] of Object.entries(colorMap)) {
+            if (value.includes(oklch)) {
+              element.setAttribute(attr, value.replace(oklch, hex));
+              break;
+            }
+          }
+        }
+      });
+    }
+  };
+
   const generateAndPrintPDF = async () => {
     setIsProcessing(true);
 
     try {
-      // Create a container for printing
+      // Buat container untuk printing
       const printContainer = document.createElement('div');
       printContainer.style.position = 'fixed';
       printContainer.style.left = '0';
@@ -40,60 +101,72 @@ export default function ECard() {
       printContainer.style.backgroundColor = '#f3f4f6';
       printContainer.style.zIndex = '9999';
       
-      // Clone the cards
+      // Clone kartu
       const frontClone = frontCardRef.current.cloneNode(true);
       const backClone = backCardRef.current.cloneNode(true);
       
-      // Apply print styles
+      // Hapus shadow untuk cetakan
       frontClone.style.boxShadow = 'none';
       backClone.style.boxShadow = 'none';
       
-      // Append clones to print container
+      // Ganti warna yang tidak didukung
+      replaceUnsupportedStyles(frontClone);
+      replaceUnsupportedStyles(backClone);
+      
+      // Tambahkan ke container
       printContainer.appendChild(frontClone);
       printContainer.appendChild(backClone);
       document.body.appendChild(printContainer);
 
-      // Wait for rendering
+      // Tunggu rendering dan font loading
       await new Promise(resolve => setTimeout(resolve, 500));
+      await document.fonts.ready;
       
-      // Capture the container with ignoreCSSColorFunction
+      // Konversi ke canvas
       const canvas = await html2canvas(printContainer, {
         scale: 2,
-        logging: true,
+        logging: false,
         useCORS: true,
         backgroundColor: null,
         allowTaint: true,
         scrollX: 0,
         scrollY: 0,
         windowWidth: document.documentElement.scrollWidth,
-        windowHeight: document.documentElement.scrollHeight,
-        ignoreCSSColorFunction: true // Fix for OKLCH error
+        windowHeight: document.documentElement.scrollHeight
       });
 
-      // Calculate PDF dimensions (A4 landscape ratio)
-      const pdfWidth = 297; // mm
-      const pdfHeight = 210; // mm
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight) * 0.95;
-      
+      // Buat PDF (A4 landscape)
       const pdf = new jsPDF({
         orientation: "landscape",
         unit: "mm",
         format: "a4"
       });
 
-      pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 
-        (pdfWidth - imgWidth * ratio) / 2,
-        (pdfHeight - imgHeight * ratio) / 2,
-        imgWidth * ratio, 
-        imgHeight * ratio
+      // Hitung dimensi untuk centering
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgRatio = Math.min(
+        (pdfWidth * 0.95) / canvas.width, 
+        (pdfHeight * 0.95) / canvas.height
+      );
+      const imgWidth = canvas.width * imgRatio;
+      const imgHeight = canvas.height * imgRatio;
+      const xPos = (pdfWidth - imgWidth) / 2;
+      const yPos = (pdfHeight - imgHeight) / 2;
+
+      pdf.addImage(
+        canvas.toDataURL('image/png', 1.0), 
+        'PNG', 
+        xPos, 
+        yPos, 
+        imgWidth, 
+        imgHeight
       );
 
-      // Clean up
+      // Bersihkan
       document.body.removeChild(printContainer);
 
-      // Open print dialog
+      // Buka print dialog
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
       const printWindow = window.open(pdfUrl);
@@ -106,62 +179,76 @@ export default function ECard() {
       }
 
     } catch (err) {
-      console.error('PDF Error:', err);
-      alert('Gagal membuat PDF. Silakan coba lagi atau gunakan browser berbeda.');
+      console.error('PDF Generation Error:', err);
+      alert(`Gagal membuat PDF. Error: ${err.message}\n\nPastikan:\n1. Menggunakan browser terbaru (Chrome/Firefox)\n2. Tidak menggunakan mode penyamaran\n3. Mengizinkan pop-up untuk situs ini`);
     } finally {
       setIsProcessing(false);
     }
   };
 
   if (loading || !qrcode) {
-    return <div className="text-center p-10">Memuat data kartu...</div>;
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center p-10 bg-white rounded-lg shadow-md">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-lg font-medium">Memuat data kartu...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="container mx-auto py-10 px-4">
       <Head>
         <title>Kartu Peserta Digital</title>
+        <meta name="description" content="Kartu peserta digital Santri Siap Guna" />
       </Head>
 
-      <h1 className="text-2xl font-bold text-center mb-8">Kartu Peserta Digital</h1>
+      <h1 className="text-2xl font-bold text-center mb-8 text-gray-800">Kartu Peserta Digital</h1>
 
-      <div className="flex flex-col md:flex-row gap-8 justify-center">
+      <div className="flex flex-col md:flex-row gap-8 justify-center items-center">
         {/* Front Card */}
         <div
           ref={frontCardRef}
-          className="bg-blue-700 text-white rounded-xl overflow-hidden shadow-xl w-full md:w-[400px] h-[250px] flex"
+          className="bg-blue-700 text-white rounded-xl overflow-hidden shadow-xl w-full max-w-md h-64 flex"
         >
-          <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center p-3">
-            <div className="bg-white p-2 rounded-lg mb-2 shadow-md">
+          <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center p-4">
+            <div className="bg-white p-2 rounded-lg mb-3 shadow-md">
               <QRCode 
                 value={qrcode} 
                 size={120} 
-                style={{ width: '120px', height: '120px' }} 
                 fgColor="#1e40af"
+                level="H"
+                style={{ width: '100%', height: 'auto' }} 
               />
             </div>
             <p className="text-xs font-medium text-blue-100 text-center">Scan untuk verifikasi</p>
           </div>
-          <div className="w-3/5 pl-3 flex flex-col py-4 pr-3">
-            <div className="flex items-center">
+          <div className="w-3/5 flex flex-col py-4 px-4">
+            <div className="flex items-center mb-4">
               <Image 
                 src="/img/logossg_white.png" 
-                alt="Logo" 
+                alt="Logo SSG" 
                 width={32} 
                 height={32} 
                 className="mr-2"
+                priority
               />
               <div>
-                <h3 className="text-lg font-bold leading-none">SANTRI SIAP</h3>
-                <h3 className="text-lg font-bold leading-none">GUNA</h3>
+                <h3 className="text-lg font-bold leading-tight">SANTRI SIAP</h3>
+                <h3 className="text-lg font-bold leading-tight">GUNA</h3>
                 <p className="text-xs font-medium">KARTU PESERTA</p>
               </div>
             </div>
-            <div className="flex-grow flex flex-col justify-center mt-2">
-              <h2 className="text-xl font-bold mb-2">{user?.name || 'Nama Peserta'}</h2>
+            <div className="flex-grow flex flex-col justify-center">
+              <h2 className="text-xl font-bold mb-3 truncate">{user?.name || 'Nama Peserta'}</h2>
               <div className="space-y-2">
-                <div className="bg-blue-800 py-1.5 px-3 rounded-md text-sm font-medium">Peserta Angkatan 2025</div>
-                <div className="bg-blue-800 py-1.5 px-3 rounded-md text-sm font-medium">Pleton: {user?.pleton || '-'} / Grup {user?.grup || '-'}</div>
+                <div className="bg-blue-800 py-2 px-3 rounded-md text-sm font-medium">
+                  Peserta Angkatan 2025
+                </div>
+                <div className="bg-blue-800 py-2 px-3 rounded-md text-sm font-medium">
+                  Pleton: {user?.pleton || '-'} / Grup {user?.grup || '-'}
+                </div>
               </div>
             </div>
           </div>
@@ -170,34 +257,35 @@ export default function ECard() {
         {/* Back Card */}
         <div
           ref={backCardRef}
-          className="bg-white rounded-xl overflow-hidden shadow-xl w-full md:w-[400px] h-[250px] flex flex-col"
+          className="bg-white rounded-xl overflow-hidden shadow-xl w-full max-w-md h-64 flex flex-col"
         >
-          <div className="flex items-center justify-between px-4 pt-2 pb-1 border-b border-gray-100">
+          <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-gray-200">
             <Image 
               src="/img/logo_ssg.png" 
-              alt="SSG Logo" 
+              alt="Logo SSG" 
               width={80} 
               height={22}
+              priority
             />
             <Image 
-              src="/img/logo_DT READY.png" 
-              alt="DT Logo" 
+              src="/img/logo_DT_READY.png" 
+              alt="Logo DT" 
               width={24} 
               height={24}
             />
           </div>
-          <div className="text-center my-1">
+          <div className="text-center my-2">
             <h3 className="text-sm font-bold text-blue-900">ATURAN PENGGUNAAN KARTU</h3>
           </div>
-          <div className="flex-grow px-4 text-xs text-gray-800">
-            <ol className="list-decimal ml-4">
+          <div className="flex-grow px-4 py-2 text-xs text-gray-800">
+            <ol className="list-decimal ml-4 space-y-1">
               <li>Kartu ini adalah identitas resmi peserta SSG</li>
               <li>Wajib dibawa saat kegiatan SSG berlangsung</li>
               <li>Tunjukkan QR code untuk presensi kehadiran</li>
               <li>Segera laporkan kehilangan kartu kepada panitia</li>
             </ol>
           </div>
-          <div className="bg-blue-50 py-1.5 px-4 text-xs text-blue-800 font-semibold text-center border-t border-blue-100">
+          <div className="bg-blue-50 py-2 px-4 text-xs text-blue-800 font-semibold text-center border-t border-blue-200">
             Kartu ini hanya berlaku selama program Santri Siap Guna 2025
           </div>
         </div>
@@ -207,7 +295,7 @@ export default function ECard() {
         <button
           onClick={generateAndPrintPDF}
           disabled={isProcessing}
-          className="bg-blue-800 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-900 transition-colors flex items-center justify-center shadow-sm"
+          className="bg-blue-800 hover:bg-blue-900 text-white font-medium py-3 px-6 rounded-lg shadow-sm transition-colors duration-200 flex items-center justify-center min-w-[200px] disabled:opacity-70 disabled:cursor-not-allowed"
         >
           {isProcessing ? (
             <>
@@ -217,7 +305,9 @@ export default function ECard() {
               </svg>
               Membuat PDF...
             </>
-          ) : 'Cetak Kartu (PDF)'}
+          ) : (
+            'Cetak Kartu (PDF)'
+          )}
         </button>
       </div>
     </div>
