@@ -25,11 +25,28 @@ export default function ECard() {
   };
 
   const sanitizeElements = (element) => {
-    // Perbaikan: Hindari manipulasi className pada SVG
-    if (!(element instanceof SVGElement)) {
-      element.className = '';
-    }
+    // Skip SVG elements
+    if (element instanceof SVGElement) return;
 
+    // Preserve important styles
+    const preserveStyles = ['display', 'flexDirection', 'justifyContent', 'alignItems', 'flex'];
+    
+    // Clear all styles except preserved ones
+    const preserved = {};
+    preserveStyles.forEach(style => {
+      preserved[style] = element.style[style];
+    });
+    
+    element.removeAttribute('style');
+    
+    // Reapply preserved styles
+    Object.keys(preserved).forEach(style => {
+      if (preserved[style]) {
+        element.style[style] = preserved[style];
+      }
+    });
+
+    // Handle specific classes
     const bgColors = {
       'bg-blue-700': '#1d4ed8',
       'bg-blue-900': '#1e3a8a',
@@ -46,20 +63,18 @@ export default function ECard() {
     };
 
     Object.entries(bgColors).forEach(([twClass, hex]) => {
-      if(element.getAttribute('class')?.includes(twClass)) {
+      if(element.classList?.contains(twClass)) {
         element.style.backgroundColor = hex;
       }
     });
 
     Object.entries(textColors).forEach(([twClass, hex]) => {
-      if(element.getAttribute('class')?.includes(twClass)) {
+      if(element.classList?.contains(twClass)) {
         element.style.color = hex;
       }
     });
 
-    element.style.boxShadow = 'none';
-    element.style.filter = 'none';
-
+    // Process children
     Array.from(element.children).forEach(child => sanitizeElements(child));
   };
 
@@ -67,40 +82,62 @@ export default function ECard() {
     setIsProcessing(true);
     
     try {
+      // Clone the cards
       const frontClone = frontCardRef.current.cloneNode(true);
       const backClone = backCardRef.current.cloneNode(true);
 
+      // Set fixed dimensions for PDF
+      frontClone.style.width = '85mm';
+      frontClone.style.height = '54mm';
+      backClone.style.width = '85mm';
+      backClone.style.height = '54mm';
+
+      // Sanitize elements
       sanitizeElements(frontClone);
       sanitizeElements(backClone);
 
+      // Create temporary container
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'fixed';
       tempContainer.style.left = '-9999px';
-      tempContainer.appendChild(frontClone);
-      tempContainer.appendChild(backClone);
+      tempContainer.style.width = '85mm';
+      tempContainer.style.height = '54mm';
       document.body.appendChild(tempContainer);
 
+      // Append clones to container
+      tempContainer.appendChild(frontClone);
+      tempContainer.appendChild(backClone);
+
+      // Wait for rendering
       await new Promise(resolve => setTimeout(resolve, 500));
 
+      // PDF configuration
       const pdf = new jsPDF({
         orientation: "landscape",
         unit: "mm",
         format: [85, 54]
       });
 
+      // Canvas options
       const canvasOptions = {
-        scale: 2,
+        scale: 3, // Higher scale for better quality
         logging: false,
         useCORS: true,
         backgroundColor: null,
-        allowTaint: true
+        allowTaint: true,
+        width: 85 * 3.78, // Convert mm to pixels (3.78px = 1mm)
+        height: 54 * 3.78,
+        windowWidth: 85 * 3.78,
+        windowHeight: 54 * 3.78
       };
 
+      // Generate front card
       const frontCanvas = await html2canvas(frontClone, canvasOptions);
       pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, 85, 54);
 
-      const backCanvas = await html2canvas(backClone, canvasOptions);
+      // Generate back card
       pdf.addPage([85, 54], 'landscape');
+      const backCanvas = await html2canvas(backClone, canvasOptions);
       pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, 85, 54);
 
       // Auto print handler
@@ -115,6 +152,7 @@ export default function ECard() {
         };
       }
 
+      // Clean up
       document.body.removeChild(tempContainer);
 
     } catch (err) {
