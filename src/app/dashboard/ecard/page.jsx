@@ -9,6 +9,11 @@ import QRCode from "react-qr-code";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
+// Static image imports
+import logoSsgWhite from '../../../public/img/logossg_white.png';
+import logoSsg from '../../../public/img/logo_ssg.png';
+import logoDtReady from '../../../public/img/logo_DT_READY.png';
+
 export default function ECard() {
   if (typeof window === "undefined") return null;
 
@@ -24,17 +29,14 @@ export default function ECard() {
   const replaceUnsupportedStyles = (element) => {
     if (!element || !element.style) return;
 
-    // Mapping warna oklch ke hex
     const colorMap = {
-      'oklch(0.9645 0.018 252.58)': '#eff6ff', // bg-blue-50
+      'oklch(0.9645 0.018 252.58)': '#eff6ff',
       'oklch(0.9645 0.018 252.58 / 1)': '#eff6ff',
       'oklch(0.9645 0.018 252.58 / var(--tw-bg-opacity))': '#eff6ff',
       'oklch(0.964 0.02 252.57)': '#eff6ff',
       'oklch(0.96 0.02 252.57)': '#eff6ff',
-      // Tambahkan mapping lain jika diperlukan
     };
 
-    // Properti style yang perlu diperiksa
     const styleProps = [
       'backgroundColor',
       'color',
@@ -47,7 +49,6 @@ export default function ECard() {
       'stroke'
     ];
 
-    // Ganti warna yang tidak didukung
     styleProps.forEach(prop => {
       const value = element.style[prop];
       if (value && typeof value === 'string' && value.includes('oklch')) {
@@ -60,12 +61,10 @@ export default function ECard() {
       }
     });
 
-    // Proses anak-anak elemen
     if (element.children) {
       Array.from(element.children).forEach(child => replaceUnsupportedStyles(child));
     }
 
-    // Tangani SVG elements khusus
     if (element instanceof SVGElement) {
       const attributes = ['fill', 'stroke', 'stop-color'];
       attributes.forEach(attr => {
@@ -86,7 +85,6 @@ export default function ECard() {
     setIsProcessing(true);
 
     try {
-      // Buat container untuk printing
       const printContainer = document.createElement('div');
       printContainer.style.position = 'fixed';
       printContainer.style.left = '0';
@@ -101,28 +99,55 @@ export default function ECard() {
       printContainer.style.backgroundColor = '#f3f4f6';
       printContainer.style.zIndex = '9999';
       
-      // Clone kartu
       const frontClone = frontCardRef.current.cloneNode(true);
       const backClone = backCardRef.current.cloneNode(true);
       
-      // Hapus shadow untuk cetakan
       frontClone.style.boxShadow = 'none';
       backClone.style.boxShadow = 'none';
       
-      // Ganti warna yang tidak didukung
+      // Replace Next.js Image components with regular img for PDF generation
+      const replaceNextImages = (node) => {
+        const images = node.querySelectorAll('img[data-nimg]');
+        images.forEach(img => {
+          const regularImg = document.createElement('img');
+          regularImg.src = img.src;
+          regularImg.alt = img.alt;
+          regularImg.width = img.width;
+          regularImg.height = img.height;
+          regularImg.style.width = '100%';
+          regularImg.style.height = 'auto';
+          img.replaceWith(regularImg);
+        });
+      };
+
+      replaceNextImages(frontClone);
+      replaceNextImages(backClone);
+      
       replaceUnsupportedStyles(frontClone);
       replaceUnsupportedStyles(backClone);
       
-      // Tambahkan ke container
       printContainer.appendChild(frontClone);
       printContainer.appendChild(backClone);
       document.body.appendChild(printContainer);
 
-      // Tunggu rendering dan font loading
+      // Wait for images to load
+      const images = printContainer.getElementsByTagName('img');
+      await Promise.all(Array.from(images).map(img => {
+        if (!img.complete) {
+          return new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = () => {
+              console.warn('Image failed to load:', img.src);
+              resolve(); // Continue even if some images fail
+            };
+          });
+        }
+        return Promise.resolve();
+      }));
+
       await new Promise(resolve => setTimeout(resolve, 500));
       await document.fonts.ready;
       
-      // Konversi ke canvas
       const canvas = await html2canvas(printContainer, {
         scale: 2,
         logging: false,
@@ -135,14 +160,12 @@ export default function ECard() {
         windowHeight: document.documentElement.scrollHeight
       });
 
-      // Buat PDF (A4 landscape)
       const pdf = new jsPDF({
         orientation: "landscape",
         unit: "mm",
         format: "a4"
       });
 
-      // Hitung dimensi untuk centering
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       const imgRatio = Math.min(
@@ -163,10 +186,8 @@ export default function ECard() {
         imgHeight
       );
 
-      // Bersihkan
       document.body.removeChild(printContainer);
 
-      // Buka print dialog
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
       const printWindow = window.open(pdfUrl);
@@ -227,7 +248,7 @@ export default function ECard() {
           <div className="w-3/5 flex flex-col py-4 px-4">
             <div className="flex items-center mb-4">
               <Image 
-                src="/img/logossg_white.png" 
+                src={logoSsgWhite}
                 alt="Logo SSG" 
                 width={32} 
                 height={32} 
@@ -261,17 +282,18 @@ export default function ECard() {
         >
           <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-gray-200">
             <Image 
-              src="/img/logo_ssg.png" 
+              src={logoSsg}
               alt="Logo SSG" 
               width={80} 
               height={22}
               priority
             />
             <Image 
-              src="/img/logo_DT_READY.png" 
+              src={logoDtReady}
               alt="Logo DT" 
               width={24} 
               height={24}
+              priority
             />
           </div>
           <div className="text-center my-2">
