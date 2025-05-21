@@ -25,7 +25,7 @@ export default function ECard() {
 
   const handlePrint = async () => {
     setIsProcessing(true);
-    
+
     try {
       // Convert cards to high-quality images
       const frontCardImg = await toPng(frontCardRef.current, {
@@ -34,14 +34,14 @@ export default function ECard() {
         cacheBust: true,
         backgroundColor: '#1E3A8A'
       });
-      
+
       const backCardImg = await toPng(backCardRef.current, {
         quality: 1,
         pixelRatio: 3,
         cacheBust: true,
         backgroundColor: '#FFFFFF'
       });
-      
+
       // Create a new window with the printable content
       const printWindow = window.open('', '_blank');
       printWindow.document.write(`
@@ -120,8 +120,8 @@ export default function ECard() {
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Belum Terdaftar</h2>
           <p className="text-gray-600 mb-6">Anda belum terdaftar sebagai peserta Santri Siap Guna.</p>
-          <button 
-            onClick={navigateBack} 
+          <button
+            onClick={navigateBack}
             className="bg-blue-800 text-white py-2 px-6 rounded-md font-medium hover:bg-blue-900 transition-colors"
           >
             Kembali
@@ -142,8 +142,8 @@ export default function ECard() {
           </div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Terjadi Kesalahan</h2>
           <p className="text-gray-600 mb-6">Kamu belum terdaftar sebagai peserta atau terjadi kesalahan saat memuat data.</p>
-          <button 
-            onClick={navigateBack} 
+          <button
+            onClick={navigateBack}
             className="bg-blue-800 text-white py-2 px-6 rounded-md font-medium hover:bg-blue-900 transition-colors"
           >
             Kembali
@@ -162,7 +162,7 @@ export default function ECard() {
       <header className="bg-blue-900 text-white shadow-lg">
         <div className="container mx-auto px-4 py-4 relative">
           <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-            <button 
+            <button
               onClick={navigateBack}
               className="text-white"
               aria-label="Kembali ke dashboard"
@@ -172,13 +172,13 @@ export default function ECard() {
               </svg>
             </button>
           </div>
-          
+
           <div className="flex items-center justify-center">
-            <Image 
-              src="/img/logossg_white.png" 
-              alt="Santri Siap Guna Logo" 
-              width={40} 
-              height={40} 
+            <Image
+              src="/img/logossg_white.png"
+              alt="Santri Siap Guna Logo"
+              width={40}
+              height={40}
               className="mr-3"
             />
             <span className="text-xl font-bold tracking-tight">SANTRI SIAP GUNA</span>
@@ -189,7 +189,7 @@ export default function ECard() {
       <main className="container mx-auto px-4 py-10">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">Kartu Peserta Digital</h1>
-          
+
           {/* Preview cards */}
           <div className="flex flex-col md:flex-row gap-8 justify-center mb-10">
             {/* Front Card Preview - Printable version */}
@@ -197,9 +197,9 @@ export default function ECard() {
               <div className="flex h-full">
                 <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center py-2 px-1">
                   <div className="bg-white p-1 rounded-lg mb-1">
-                    <QRCode 
-                      value={qrcode} 
-                      size={80} 
+                    <QRCode
+                      value={qrcode}
+                      size={80}
                       className="w-full h-auto"
                       bgColor="#FFFFFF"
                       fgColor="#1E3A8A"
@@ -208,14 +208,14 @@ export default function ECard() {
                   </div>
                   <p className="text-center text-[8px] font-medium text-blue-100 mt-1">Scan untuk presensi</p>
                 </div>
-                
+
                 <div className="w-3/5 pl-3 flex flex-col py-3 pr-2">
                   <div className="flex items-center">
-                    <Image 
-                      src="/img/logo_ssg.png" 
-                      alt="Logo" 
-                      width={24} 
-                      height={24} 
+                    <Image
+                      src="/img/logo_ssg.png"
+                      alt="Logo"
+                      width={24}
+                      height={24}
                       className="mr-1"
                     />
                     <div>
@@ -223,15 +223,15 @@ export default function ECard() {
                       <p className="text-[8px] text-white font-medium">KARTU PESERTA</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex-grow flex flex-col justify-center mt-1">
                     <h2 className="text-[14px] font-bold mb-1 text-white leading-tight">
                       {user?.name || "MUHAMAD BRILLIAN HAIKAL"}
                     </h2>
-                    
+
                     <div className="space-y-1 mt-2">
                       <div className="bg-blue-800 py-1 px-2 rounded-md text-[10px] font-medium">
-                        Peserta Angkatan {user?.angkatan || "2025"}
+                        Peserta Angkatan {user?.nis?.substring(0, 2) || qrcode?.substring(0, 2) || "20"}
                       </div>
                       <div className="bg-blue-800 py-1 px-2 rounded-md text-[10px] font-medium">
                         Pleton: {user?.pleton || "20"} / Grup {user?.grup || "B"}
@@ -246,15 +246,15 @@ export default function ECard() {
             <div ref={backCardRef} style={{ width: '85mm', height: '54mm' }} className="bg-white rounded-xl overflow-hidden shadow-xl flex flex-col border-2 border-gray-200">
               <div className="flex h-full flex-col">
                 <div className="flex items-center justify-between px-4 pt-3 pb-1 border-b border-gray-200">
-                  <Image 
-                    src="/img/logo_ssg.png" 
-                    alt="Santri Siap Guna Logo" 
-                    width={60} 
-                    height={16} 
+                  <Image
+                    src="/img/logo_ssg.png"
+                    alt="Santri Siap Guna Logo"
+                    width={60}
+                    height={16}
                     className="h-auto"
                   />
                 </div>
-                
+
                 <div className="text-center my-2">
                   <h3 className="text-[10px] font-bold text-blue-900">ATURAN PENGGUNAAN KARTU</h3>
                 </div>
@@ -277,7 +277,7 @@ export default function ECard() {
           </div>
 
           <div className="flex justify-center">
-            <motion.button 
+            <motion.button
               onClick={handlePrint}
               disabled={isProcessing}
               className="bg-blue-800 text-white py-3 px-8 rounded-lg font-medium hover:bg-blue-900 transition-colors flex items-center justify-center shadow-md"
