@@ -76,10 +76,11 @@ const MutabaahReport = ({ user, onClose }) => {
           menyimak_mq_pagi: item.menyimak_mq_pagi ? 1 : 0,
           kajian_al_hikam: item.kajian_al_hikam ? 1 : 0,
           kajian_marifatullah: item.kajian_marifatullah ? 1 : 0,
-          haid: item.haid ? 1 : 0
+          haid: item.haid ? 1 : 0,
+          hijriDate: formatHijriDate(item.date || item.created_at)
         }));
         
-        normalizedData.sort((a, b) => new Date(b.date) - new Date(a.date));
+        normalizedData.sort((a, b) => new Date(a.date) - new Date(b.date));
         setAllUserData(normalizedData);
       } else {
         setAllUserData([]);
@@ -107,13 +108,13 @@ const MutabaahReport = ({ user, onClose }) => {
       csvContent += `Total Data,${allUserData.length}\n\n`;
 
       // Add headers
-      csvContent += "Tanggal,Sholat Wajib,Sholat Tahajud,Sholat Dhuha,Sholat Rawatib,Sholat Sunnah Lainnya,";
+      csvContent += "Tanggal,Hijriah,Sholat Wajib,Sholat Tahajud,Sholat Dhuha,Sholat Rawatib,Sholat Sunnah Lainnya,";
       csvContent += "Tilawah Quran,Terjemah Quran,Shaum Sunnah,Shodaqoh,Dzikir Pagi/Petang,";
       csvContent += "Istighfar (x1000),Sholawat (x100),Menyimak MQ Pagi,Kajian Al-Hikam,Kajian Ma'rifatullah,Status Haid\n";
 
       // Add data rows
       allUserData.forEach(data => {
-        csvContent += `${new Date(data.date).toLocaleDateString('id-ID')},${data.sholat_wajib},${data.sholat_tahajud},${data.sholat_dhuha},`;
+        csvContent += `${new Date(data.date).toLocaleDateString('id-ID')},${data.hijriDate || ''},${data.sholat_wajib},${data.sholat_tahajud},${data.sholat_dhuha},`;
         csvContent += `${data.sholat_rawatib},${data.sholat_sunnah_lainnya},${data.tilawah_quran},`;
         csvContent += `${data.terjemah_quran},${data.shaum_sunnah},${data.shodaqoh},`;
         csvContent += `${data.dzikir_pagi_petang},${data.istighfar_1000x},${data.sholawat_100x},`;
@@ -276,6 +277,267 @@ const MutabaahReport = ({ user, onClose }) => {
     }
   };
 
+  const generatePrintPage = () => {
+    if (allUserData.length === 0) {
+      toast.error('Tidak ada data untuk dicetak');
+      return;
+    }
+
+    const printData = {
+      name: user?.name || '-',
+      month: months.find(m => m.value === month)?.label || '',
+      year: year,
+      data: allUserData,
+      stats: {
+        avgSholatWajib: stats.avgSholatWajib,
+        tahajudDays: stats.tahajudDays,
+        tilawahDays: stats.tilawahDays,
+        dhuhaDays: stats.dhuhaDays,
+        shaumDays: stats.shaumDays,
+        haidDays: stats.haidDays,
+        istighfarCompleted: stats.istighfarCompleted,
+        sholawatCompleted: stats.sholawatCompleted,
+        mqDays: stats.mqDays
+      }
+    };
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="id">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Cetak Laporan Mutaba'ah</title>
+          <style>
+              body {
+                  font-family: Arial, sans-serif;
+                  margin: 20px;
+              }
+              
+              .header {
+                  text-align: center;
+                  margin-bottom: 20px;
+              }
+              
+              .header h1 {
+                  margin-bottom: 5px;
+              }
+              
+              .user-info {
+                  margin-bottom: 20px;
+              }
+              
+              table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-bottom: 20px;
+              }
+              
+              th,
+              td {
+                  border: 1px solid #ddd;
+                  padding: 8px;
+                  text-align: left;
+              }
+              
+              th {
+                  background-color: #f2f2f2;
+              }
+              
+              .summary {
+                  margin-top: 30px;
+              }
+              
+              .summary-grid {
+                  display: grid;
+                  grid-template-columns: repeat(3, 1fr);
+                  gap: 10px;
+                  margin-top: 15px;
+              }
+              
+              .summary-item {
+                  border: 1px solid #eee;
+                  padding: 10px;
+                  border-radius: 5px;
+                  background-color: #f9f9f9;
+              }
+              
+              .summary-item .label {
+                  font-size: 0.9em;
+                  color: #555;
+              }
+              
+              .summary-item .value {
+                  font-size: 1.2em;
+                  font-weight: bold;
+              }
+              
+              .footer {
+                  margin-top: 30px;
+                  text-align: right;
+                  font-size: 0.9em;
+                  color: #666;
+              }
+              
+              @media print {
+                  .no-print {
+                      display: none;
+                  }
+                  body {
+                      margin: 0;
+                      padding: 10px;
+                  }
+              }
+          </style>
+      </head>
+      <body>
+          <div class="header">
+              <h1>Laporan Mutaba'ah Yaumiyah</h1>
+              <div id="report-period"></div>
+          </div>
+
+          <div class="user-info">
+              <div><strong>Nama:</strong> <span id="user-name">${printData.name}</span></div>
+              <div><strong>Periode:</strong> <span id="period">${printData.month} ${printData.year}</span></div>
+              <div><strong>Total Hari:</strong> <span id="total-days">${printData.data.length}</span></div>
+              <div><strong>Tanggal Cetak:</strong> <span id="print-date">${new Date().toLocaleDateString('id-ID')}</span></div>
+          </div>
+
+          <table id="report-table">
+              <thead>
+                  <tr>
+                      <th>Tanggal</th>
+                      <th>Hijriah</th>
+                      <th>Sholat Wajib</th>
+                      <th>Tahajud</th>
+                      <th>Dhuha</th>
+                      <th>Shaum</th>
+                      <th>Haid</th>
+                  </tr>
+              </thead>
+              <tbody id="report-data">
+                  ${printData.data.map(item => `
+                      <tr>
+                          <td>${new Date(item.date).toLocaleDateString('id-ID')}</td>
+                          <td>${item.hijriDate || ''}</td>
+                          <td>${item.sholat_wajib}/5${item.haid > 0 ? ' (Haid)' : ''}</td>
+                          <td>${item.sholat_tahajud > 0 ? '✓' : '✗'}</td>
+                          <td>${item.sholat_dhuha > 0 ? `${item.sholat_dhuha} rakaat` : '✗'}</td>
+                          <td>${item.shaum_sunnah > 0 ? '✓' : '✗'}</td>
+                          <td>${item.haid > 0 ? '✗' : '✓'}</td>
+                      </tr>
+                  `).join('')}
+              </tbody>
+          </table>
+
+          <div class="summary">
+              <h2>Statistik Ringkasan</h2>
+              <div class="summary-grid" id="summary-stats">
+                  <div class="summary-item">
+                      <div class="label">Sholat Wajib (Rata-rata)</div>
+                      <div class="value">${printData.stats.avgSholatWajib}/5</div>
+                  </div>
+                  <div class="summary-item">
+                      <div class="label">Tahajud (Hari)</div>
+                      <div class="value">${printData.stats.tahajudDays}/${printData.data.length}</div>
+                  </div>
+                  <div class="summary-item">
+                      <div class="label">Tilawah Quran (Hari)</div>
+                      <div class="value">${printData.stats.tilawahDays}/${printData.data.length}</div>
+                  </div>
+                  <div class="summary-item">
+                      <div class="label">Dhuha (Hari)</div>
+                      <div class="value">${printData.stats.dhuhaDays}/${printData.data.length}</div>
+                  </div>
+                  <div class="summary-item">
+                      <div class="label">Shaum Sunnah (Hari)</div>
+                      <div class="value">${printData.stats.shaumDays}/${printData.data.length}</div>
+                  </div>
+                  <div class="summary-item">
+                      <div class="label">Haid (Hari)</div>
+                      <div class="value">${printData.stats.haidDays}/${printData.data.length}</div>
+                  </div>
+                  <div class="summary-item">
+                      <div class="label">Istighfar 1000x (Hari)</div>
+                      <div class="value">${printData.stats.istighfarCompleted}/${printData.data.length}</div>
+                  </div>
+                  <div class="summary-item">
+                      <div class="label">Sholawat 100x (Hari)</div>
+                      <div class="value">${printData.stats.sholawatCompleted}/${printData.data.length}</div>
+                  </div>
+                  <div class="summary-item">
+                      <div class="label">MQ Pagi (Hari)</div>
+                      <div class="value">${printData.stats.mqDays}/${printData.data.length}</div>
+                  </div>
+              </div>
+          </div>
+
+          <div class="footer">
+              Dicetak dari Sistem Mutaba'ah Yaumiyah
+          </div>
+
+          <div class="no-print" style="margin-top: 30px; text-align: center;">
+              <button onclick="window.print()" style="padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                  Cetak Laporan
+              </button>
+              <button onclick="exportToCSV()" style="padding: 10px 20px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">
+                  Export ke CSV
+              </button>
+          </div>
+
+          <script>
+              function exportToCSV() {
+                  const data = ${JSON.stringify(printData.data)};
+                  const name = "${printData.name}";
+                  const month = "${printData.month}";
+                  const year = "${printData.year}";
+                  
+                  let csvContent = "Laporan Lengkap Mutaba'ah Yaumiyah\\n\\n";
+                  csvContent += \`Nama,\${name}\\n\`;
+                  csvContent += \`Periode,\${month} \${year}\\n\`;
+                  csvContent += \`Tanggal Laporan,\${new Date().toLocaleDateString('id-ID')}\\n\`;
+                  csvContent += \`Total Data,\${data.length}\\n\\n\`;
+
+                  // Add headers
+                  csvContent += "Tanggal,Hijriah,Sholat Wajib,Sholat Tahajud,Sholat Dhuha,Sholat Rawatib,Sholat Sunnah Lainnya,";
+                  csvContent += "Tilawah Quran,Terjemah Quran,Shaum Sunnah,Shodaqoh,Dzikir Pagi/Petang,";
+                  csvContent += "Istighfar (x1000),Sholawat (x100),Menyimak MQ Pagi,Kajian Al-Hikam,Kajian Ma'rifatullah,Status Haid\\n";
+
+                  // Add data rows
+                  data.forEach(item => {
+                      csvContent += \`\${new Date(item.date).toLocaleDateString('id-ID')},\${item.hijriDate || ''},\${item.sholat_wajib},\${item.sholat_tahajud},\${item.sholat_dhuha},\`;
+                      csvContent += \`\${item.sholat_rawatib || 0},\${item.sholat_sunnah_lainnya || 0},\${item.tilawah_quran},\`;
+                      csvContent += \`\${item.terjemah_quran},\${item.shaum_sunnah},\${item.shodaqoh || 0},\`;
+                      csvContent += \`\${item.dzikir_pagi_petang},\${item.istighfar_1000x || 0},\${item.sholawat_100x || 0},\`;
+                      csvContent += \`\${item.menyimak_mq_pagi || 0},\${item.kajian_al_hikam || 0},\${item.kajian_marifatullah || 0},\`;
+                      csvContent += \`\${item.haid}\\n\`;
+                  });
+
+                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.setAttribute('href', url);
+                  link.setAttribute('download', \`laporan_mutabaah_\${name}_\${month}_\${year}.csv\`);
+                  link.style.visibility = 'hidden';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+              }
+
+              // Auto print when page loads
+              window.onload = function() {
+                  setTimeout(() => {
+                      window.print();
+                  }, 500);
+              };
+          </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -358,7 +620,7 @@ const MutabaahReport = ({ user, onClose }) => {
                               {new Date(data.date).toLocaleDateString('id-ID')}
                             </td>
                             <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {formatHijriDate(data.date)}
+                              {data.hijriDate || ''}
                             </td>
                             <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                               {data.sholat_wajib}/5
