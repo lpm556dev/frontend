@@ -25,8 +25,11 @@ export default function ECard() {
   };
 
   const sanitizeElements = (element) => {
-    element.className = '';
-    
+    // Perbaikan: Hindari manipulasi className pada SVG
+    if (!(element instanceof SVGElement)) {
+      element.className = '';
+    }
+
     const bgColors = {
       'bg-blue-700': '#1d4ed8',
       'bg-blue-900': '#1e3a8a',
@@ -100,13 +103,17 @@ export default function ECard() {
       pdf.addPage([85, 54], 'landscape');
       pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, 85, 54);
 
-      // Tambahkan perintah auto print
-      pdf.autoPrint({ variant: 'non-conform' });
-      
-      // Buka PDF di tab baru dengan auto print
+      // Auto print handler
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl).print();
+      const printWindow = window.open(pdfUrl);
+      
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+          URL.revokeObjectURL(pdfUrl);
+        };
+      }
 
       document.body.removeChild(tempContainer);
 
