@@ -6,10 +6,13 @@ import Image from 'next/image';
 import useAuthStore from '../../../stores/authStore';
 import QRCode from "react-qr-code";
 import { motion } from 'framer-motion';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 export default function ECard() {
   const { user, loading, error, qrcode, fetchUserQRCode } = useAuthStore();
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [activeCard, setActiveCard] = useState('both'); // Default to show both cards
   const printRef = useRef(null);
 
@@ -23,87 +26,135 @@ export default function ECard() {
 
   // Improved print function that uses the browser's print functionality
   const handlePrint = (side) => {
-  setActiveCard(side);
-  setIsPrinting(true);
-  
-  setTimeout(() => {
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'absolute';
-    iframe.style.top = '-9999px';
-    iframe.style.left = '-9999px';
-    iframe.style.width = '85mm';
-    iframe.style.height = '54mm';
-    document.body.appendChild(iframe);
+    setActiveCard(side);
+    setIsPrinting(true);
     
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
-    const cardElement = document.getElementById(`${side}-card`).cloneNode(true);
-    
-    // Hapus semua atribut motion dan class yang tidak perlu
-    cardElement.removeAttribute('style');
-    cardElement.removeAttribute('initial');
-    cardElement.removeAttribute('animate');
-    cardElement.removeAttribute('transition');
-    cardElement.classList.remove('rounded-xl', 'shadow-xl', 'border');
-    
-    // Tambahkan style khusus untuk print
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Kartu Peserta SSG</title>
-          <style>
-            @page {
-              size: 85mm 54mm landscape;
-              margin: 0;
-            }
-            body {
-              margin: 0;
-              padding: 0;
-              width: 85mm;
-              height: 54mm;
-              overflow: hidden;
-            }
-            .front-card, .back-card {
-              width: 100% !important;
-              height: 100% !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              border: none !important;
-              border-radius: 0 !important;
-              box-shadow: none !important;
-            }
-          </style>
-        </head>
-        <body>
-        </body>
-      </html>
-    `);
-    
-    doc.body.appendChild(cardElement);
-    
-    const script = doc.createElement('script');
-    script.textContent = `
-      window.onload = function() {
-        setTimeout(function() {
-          window.print();
-          window.close();
-        }, 100);
-      }
-    `;
-    doc.body.appendChild(script);
-    
-    iframe.onload = function() {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
+    setTimeout(() => {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.top = '-9999px';
+      iframe.style.left = '-9999px';
+      iframe.style.width = '85mm';
+      iframe.style.height = '54mm';
+      document.body.appendChild(iframe);
       
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-        setIsPrinting(false);
-        setActiveCard('both');
-      }, 1000);
-    };
-  }, 100);
-};
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      const cardElement = document.getElementById(`${side}-card`).cloneNode(true);
+      
+      // Hapus semua atribut motion dan class yang tidak perlu
+      cardElement.removeAttribute('style');
+      cardElement.removeAttribute('initial');
+      cardElement.removeAttribute('animate');
+      cardElement.removeAttribute('transition');
+      cardElement.classList.remove('rounded-xl', 'shadow-xl', 'border');
+      
+      // Tambahkan style khusus untuk print
+      doc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Kartu Peserta SSG</title>
+            <style>
+              @page {
+                size: 85mm 54mm landscape;
+                margin: 0;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+                width: 85mm;
+                height: 54mm;
+                overflow: hidden;
+              }
+              .front-card, .back-card {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+              }
+            </style>
+          </head>
+          <body>
+          </body>
+        </html>
+      `);
+      
+      doc.body.appendChild(cardElement);
+      
+      const script = doc.createElement('script');
+      script.textContent = `
+        window.onload = function() {
+          setTimeout(function() {
+            window.print();
+            window.close();
+          }, 100);
+        }
+      `;
+      doc.body.appendChild(script);
+      
+      iframe.onload = function() {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+          setIsPrinting(false);
+          setActiveCard('both');
+        }, 1000);
+      };
+    }, 100);
+  };
+
+  const generatePDF = async (type = 'both') => {
+    setIsGeneratingPDF(true);
+    
+    try {
+      const pdf = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: [85, 54],
+      });
+
+      const scale = 3; // Higher scale for better quality
+      
+      if (type === 'front' || type === 'both') {
+        const frontElement = document.getElementById('front-card');
+        const frontCanvas = await html2canvas(frontElement, { 
+          scale,
+          backgroundColor: null,
+          logging: false,
+          useCORS: true
+        });
+        const frontImg = frontCanvas.toDataURL('image/png', 1.0);
+        pdf.addImage(frontImg, 'PNG', 0, 0, 85, 54);
+      }
+      
+      if (type === 'both') {
+        pdf.addPage([85, 54], 'landscape');
+      }
+      
+      if (type === 'back' || type === 'both') {
+        const backElement = document.getElementById('back-card');
+        const backCanvas = await html2canvas(backElement, { 
+          scale,
+          backgroundColor: null,
+          logging: false,
+          useCORS: true
+        });
+        const backImg = backCanvas.toDataURL('image/png', 1.0);
+        pdf.addImage(backImg, 'PNG', 0, 0, 85, 54);
+      }
+      
+      pdf.save(`kartu-peserta-ssg-${user?.name || 'user'}.pdf`);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -429,37 +480,60 @@ export default function ECard() {
                 </>
               )}
             </button>
+
+            {/* PDF Buttons */}
+            <button 
+              onClick={() => generatePDF('both')}
+              disabled={isGeneratingPDF}
+              className="bg-green-700 text-white py-3 px-6 rounded-lg font-medium hover:bg-green-800 transition-colors flex items-center justify-center shadow-sm"
+            >
+              {isGeneratingPDF ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Membuat PDF...
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Unduh PDF
+                </>
+              )}
+            </button>
           </div>
         </div>
         
       </main>
       <style jsx global>{`
-  @media print {
-    body * {
-      visibility: hidden;
-    }
-    #front-card,
-    #back-card,
-    #front-card *,
-    #back-card * {
-      visibility: visible !important;
-    }
-    #front-card,
-    #back-card {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 85mm !important;
-      height: 54mm !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      border: none !important;
-      border-radius: 0 !important;
-      box-shadow: none !important;
-    }
-  }
-`}</style>
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #front-card,
+          #back-card,
+          #front-card *,
+          #back-card * {
+            visibility: visible !important;
+          }
+          #front-card,
+          #back-card {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 85mm !important;
+            height: 54mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+          }
+        }
+      `}</style>
     </div>
-    
   );
 }
