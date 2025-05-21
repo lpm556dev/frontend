@@ -11,7 +11,8 @@ import { useReactToPrint } from 'react-to-print';
 export default function ECard() {
   const { user, loading, error, qrcode, fetchUserQRCode } = useAuthStore();
   const [isProcessing, setIsProcessing] = useState(false);
-  const printRef = useRef(null);
+  const printRef = useRef();
+  const componentRef = useRef();
 
   useEffect(() => {
     fetchUserQRCode();
@@ -22,7 +23,7 @@ export default function ECard() {
   };
 
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
+    content: () => componentRef.current,
     pageStyle: `
       @page {
         size: 85mm 54mm;
@@ -244,7 +245,7 @@ export default function ECard() {
 
           {/* Printable content */}
           <div style={{ display: "none" }}>
-            <div ref={printRef}>
+            <div ref={componentRef}>
               {/* Front Card for Printing */}
               <div className="bg-blue-700 text-white w-[85mm] h-[54mm] flex">
                 <div className="w-2/5 bg-blue-900 flex flex-col justify-center items-center py-1 px-1">
