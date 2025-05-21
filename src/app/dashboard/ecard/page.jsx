@@ -234,7 +234,7 @@ export default function ECard() {
                         Peserta Angkatan {user?.nis?.substring(0, 2) || qrcode?.substring(1, 3) || "20"}
                       </div>
                       <div className="bg-blue-800 py-1 px-2 rounded-md text-[10px] font-medium">
-                        Pleton: {user?.pleton || "20"} / Grup {user?.grup || "B"}
+                        Pleton: {user?.pleton || "20"}
                       </div>
                     </div>
                   </div>
