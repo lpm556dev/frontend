@@ -50,7 +50,7 @@ export default function ECard() {
             <title>Kartu Peserta SSG</title>
             <style>
               @page {
-                size: 85.6mm 54mm;
+                size: 171.2mm 54mm; /* Double width for two cards */
                 margin: 0;
               }
               body {
@@ -59,17 +59,14 @@ export default function ECard() {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
               }
-              .card-container {
-                width: 85.6mm;
-                height: 54mm;
+              .cards-container {
                 display: flex;
-                justify-content: center;
-                align-items: center;
-                page-break-after: always;
+                width: 171.2mm;
+                height: 54mm;
               }
               .card-img {
-                width: 85mm;
-                height: 53.5mm;
+                width: 85.6mm;
+                height: 54mm;
                 object-fit: contain;
               }
               @media print {
@@ -80,10 +77,8 @@ export default function ECard() {
             </style>
           </head>
           <body>
-            <div class="card-container">
+            <div class="cards-container">
               <img src="${frontCardImg}" class="card-img" />
-            </div>
-            <div class="card-container">
               <img src="${backCardImg}" class="card-img" />
             </div>
             <script>
@@ -208,7 +203,7 @@ export default function ECard() {
                       className="w-full h-auto"
                       bgColor="#FFFFFF"
                       fgColor="#1E3A8A"
-                      level="H" // Higher error correction
+                      level="H"
                     />
                   </div>
                   <p className="text-center text-[8px] font-medium text-blue-100 mt-1">Scan untuk presensi</p>
@@ -259,7 +254,6 @@ export default function ECard() {
                     height={16} 
                     className="h-auto"
                   />
-                  
                 </div>
                 
                 <div className="text-center my-2">
@@ -304,14 +298,14 @@ export default function ECard() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                   </svg>
-                  Cetak Kartu
+                  Cetak Kartu (Depan & Belakang)
                 </>
               )}
             </motion.button>
           </div>
 
           <div className="mt-6 text-center text-sm text-gray-500">
-            <p>Pastikan untuk mencetak kedua sisi kartu dengan ukuran 85.6mm × 54mm (standar kartu)</p>
+            <p>Kartu akan dicetak dalam 1 halaman PDF dengan sisi depan dan belakang berdampingan</p>
             <p className="mt-1">Gunakan kertas yang cukup tebal (minimal 260gsm) untuk hasil terbaik</p>
           </div>
         </div>
