@@ -25,10 +25,8 @@ export default function ECard() {
   };
 
   const sanitizeElements = (element) => {
-    // Hapus semua class Tailwind
     element.className = '';
     
-    // Atur style langsung untuk warna umum
     const bgColors = {
       'bg-blue-700': '#1d4ed8',
       'bg-blue-900': '#1e3a8a',
@@ -44,25 +42,21 @@ export default function ECard() {
       'text-gray-800': '#1f2937'
     };
 
-    // Terapkan warna background
     Object.entries(bgColors).forEach(([twClass, hex]) => {
       if(element.getAttribute('class')?.includes(twClass)) {
         element.style.backgroundColor = hex;
       }
     });
 
-    // Terapkan warna text
     Object.entries(textColors).forEach(([twClass, hex]) => {
       if(element.getAttribute('class')?.includes(twClass)) {
         element.style.color = hex;
       }
     });
 
-    // Hapus efek shadow
     element.style.boxShadow = 'none';
     element.style.filter = 'none';
 
-    // Proses anak elemen
     Array.from(element.children).forEach(child => sanitizeElements(child));
   };
 
@@ -70,15 +64,12 @@ export default function ECard() {
     setIsProcessing(true);
     
     try {
-      // Clone element asli
       const frontClone = frontCardRef.current.cloneNode(true);
       const backClone = backCardRef.current.cloneNode(true);
 
-      // Sanitize cloned elements
       sanitizeElements(frontClone);
       sanitizeElements(backClone);
 
-      // Buat container temporary
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'fixed';
       tempContainer.style.left = '-9999px';
@@ -86,17 +77,14 @@ export default function ECard() {
       tempContainer.appendChild(backClone);
       document.body.appendChild(tempContainer);
 
-      // Pastikan QR code ter-render
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Buat PDF
       const pdf = new jsPDF({
         orientation: "landscape",
         unit: "mm",
         format: [85, 54]
       });
 
-      // Konfigurasi html2canvas
       const canvasOptions = {
         scale: 2,
         logging: false,
@@ -105,25 +93,21 @@ export default function ECard() {
         allowTaint: true
       };
 
-      // Capture front card
       const frontCanvas = await html2canvas(frontClone, canvasOptions);
       pdf.addImage(frontCanvas.toDataURL('image/png'), 'PNG', 0, 0, 85, 54);
 
-      // Capture back card
       const backCanvas = await html2canvas(backClone, canvasOptions);
       pdf.addPage([85, 54], 'landscape');
       pdf.addImage(backCanvas.toDataURL('image/png'), 'PNG', 0, 0, 85, 54);
 
-      // Simpan dan cetak
+      // Tambahkan perintah auto print
+      pdf.autoPrint({ variant: 'non-conform' });
+      
+      // Buka PDF di tab baru dengan auto print
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
-      const printWindow = window.open(pdfUrl);
-      
-      if (printWindow) {
-        printWindow.onload = () => printWindow.print();
-      }
+      window.open(pdfUrl).print();
 
-      // Bersihkan temporary elements
       document.body.removeChild(tempContainer);
 
     } catch (err) {
