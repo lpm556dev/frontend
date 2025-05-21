@@ -259,12 +259,7 @@ export default function ECard() {
                     height={16} 
                     className="h-auto"
                   />
-                  <Image 
-                    src="/img/logo_DT READY.png" 
-                    alt="DT Logo" 
-                    width={18} 
-                    height={18} 
-                  />
+                  
                 </div>
                 
                 <div className="text-center my-2">
