@@ -116,7 +116,7 @@ const MutabaahReport = ({ user, onClose }) => {
         "Tahajud", 
         "Dhuha", 
         "Shaum Sunnah", 
-        "Haid",
+        ...(user?.role === 0 ? ["Haid"] : []),
         "Tilawah Quran",
         "Terjemah Quran",
         "Dzikir Pagi/Petang",
@@ -132,13 +132,13 @@ const MutabaahReport = ({ user, onClose }) => {
       allUserData.forEach((data, index) => {
         const row = [
           index + 1,
-          `"${new Date(data.date).toLocaleDateString('id-ID')}"`, // Wrapped in quotes for proper CSV formatting
+          `"${new Date(data.date).toLocaleDateString('id-ID')}"`,
           `"${formatHijriDate(data.date)}"`,
           data.sholat_wajib > 0 ? `${data.sholat_wajib}/5` : '0/5',
           data.sholat_tahajud > 0 ? 'Ya' : 'Tidak',
           data.sholat_dhuha > 0 ? `${data.sholat_dhuha} rakaat` : 'Tidak',
           data.shaum_sunnah > 0 ? 'Ya' : 'Tidak',
-          data.haid > 0 ? 'Ya' : 'Tidak',
+          ...(user?.role === 0 ? [data.haid > 0 ? 'Ya' : 'Tidak'] : []),
           data.tilawah_quran > 0 ? 'Ya' : 'Tidak',
           data.terjemah_quran > 0 ? 'Ya' : 'Tidak',
           data.dzikir_pagi_petang > 0 ? 'Ya' : 'Tidak',
@@ -158,7 +158,7 @@ const MutabaahReport = ({ user, onClose }) => {
         ['Tahajud (Hari)', `${stats.tahajudDays}/${allUserData.length}`],
         ['Dhuha (Hari)', `${stats.dhuhaDays}/${allUserData.length}`],
         ['Shaum Sunnah (Hari)', `${stats.shaumDays}/${allUserData.length}`],
-        ['Haid (Hari)', `${stats.haidDays}/${allUserData.length}`],
+        ...(user?.role === 0 ? [['Haid (Hari)', `${stats.haidDays}/${allUserData.length}`]] : []),
         ['Tilawah Quran (Hari)', `${stats.tilawahDays}/${allUserData.length}`],
         ['Terjemah Quran (Hari)', `${stats.terjemahDays}/${allUserData.length}`],
         ['Istighfar 1000x (Hari)', `${stats.istighfarCompleted}/${allUserData.length}`],
@@ -326,6 +326,95 @@ const MutabaahReport = ({ user, onClose }) => {
     }
   };
 
+  const renderTable = (title, dataKey, isBoolean = true, unit = '') => {
+    return (
+      <div className="mb-8">
+        <h4 className="font-semibold text-lg mb-3">{title}</h4>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hijriah</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {allUserData.map((data, index) => (
+                <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    {new Date(data.date).toLocaleDateString('id-ID')}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    {formatHijriDate(data.date)}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    {isBoolean ? (
+                      isValueActive(data[dataKey]) ? (
+                        <span className="text-green-600">✓</span>
+                      ) : (
+                        <span className="text-red-600">✗</span>
+                      )
+                    ) : (
+                      data[dataKey] > 0 ? (
+                        <span className="text-green-600">{data[dataKey]} {unit}</span>
+                      ) : (
+                        <span className="text-red-600">✗</span>
+                      )
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSholatWajibTable = () => {
+    return (
+      <div className="mb-8">
+        <h4 className="font-semibold text-lg mb-3">Sholat Wajib</h4>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hijriah</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {allUserData.map((data, index) => (
+                <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    {new Date(data.date).toLocaleDateString('id-ID')}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    {formatHijriDate(data.date)}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    {data.sholat_wajib > 0 ? (
+                      <span className={data.sholat_wajib === 5 ? 'text-green-600' : 'text-amber-600'}>
+                        {data.sholat_wajib}/5
+                      </span>
+                    ) : (
+                      <span className="text-red-600">0/5</span>
+                    )}
+                    {data.haid > 0 && user?.role === 0 && (
+                      <span className="text-red-500 ml-1">(Haid)</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -388,65 +477,17 @@ const MutabaahReport = ({ user, onClose }) => {
             <>
               {allUserData.length > 0 ? (
                 <>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hijriah</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sholat Wajib</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tahajud</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dhuha</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shaum</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Haid</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {allUserData.map((data, index) => (
-                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {new Date(data.date).toLocaleDateString('id-ID')}
-                            </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {formatHijriDate(data.date)}
-                            </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {data.sholat_wajib}/5
-                              {data.haid > 0 && <span className="text-red-500 ml-1">(Haid)</span>}
-                            </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {isValueActive(data.sholat_tahajud) ? (
-                                <span className="text-green-600">✓</span>
-                              ) : (
-                                <span className="text-red-600">✗</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {data.sholat_dhuha > 0 ? (
-                                <span className="text-green-600">{data.sholat_dhuha} rakaat</span>
-                              ) : (
-                                <span className="text-red-600">✗</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {isValueActive(data.shaum_sunnah) ? (
-                                <span className="text-green-600">✓</span>
-                              ) : (
-                                <span className="text-red-600">✗</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {isValueActive(data.haid) ? (
-                                <span className="text-red-600">✗</span>
-                              ) : (
-                                <span className="text-green-600">✓</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  {renderSholatWajibTable()}
+                  {renderTable("Sholat Tahajud", "sholat_tahajud")}
+                  {renderTable("Sholat Dhuha", "sholat_dhuha", false, "rakaat")}
+                  {renderTable("Shaum Sunnah", "shaum_sunnah")}
+                  {user?.role === 0 && renderTable("Haid", "haid")}
+                  {renderTable("Tilawah Quran", "tilawah_quran")}
+                  {renderTable("Terjemah Quran", "terjemah_quran")}
+                  {renderTable("Dzikir Pagi/Petang", "dzikir_pagi_petang")}
+                  {renderTable("Istighfar 1000x", "istighfar_1000x")}
+                  {renderTable("Sholawat 100x", "sholawat_100x")}
+                  {renderTable("Menyimak MQ Pagi", "menyimak_mq_pagi")}
 
                   <div className="mt-6">
                     <h4 className="font-semibold text-lg mb-3">Statistik Ringkasan</h4>
@@ -481,12 +522,14 @@ const MutabaahReport = ({ user, onClose }) => {
                           {stats.shaumDays}/{allUserData.length}
                         </div>
                       </div>
-                      <div className="bg-red-50 p-4 rounded-lg">
-                        <div className="text-sm text-red-800">Haid (Hari)</div>
-                        <div className="text-2xl font-bold text-red-600">
-                          {stats.haidDays}/{allUserData.length}
+                      {user?.role === 0 && (
+                        <div className="bg-red-50 p-4 rounded-lg">
+                          <div className="text-sm text-red-800">Haid (Hari)</div>
+                          <div className="text-2xl font-bold text-red-600">
+                            {stats.haidDays}/{allUserData.length}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
