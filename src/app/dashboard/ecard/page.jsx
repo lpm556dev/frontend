@@ -220,18 +220,13 @@ export default function ECard() {
               <div className="flex h-full flex-col">
                 <div className="flex items-center justify-between px-2 pt-1 pb-0 border-b border-gray-100">
                   <Image 
-                    src="/img/logo_ssg.png" 
+                    src="/img/logo_DT READY.png" 
                     alt="Santri Siap Guna Logo" 
                     width={60} 
                     height={16} 
                     className="h-auto"
                   />
-                  <Image 
-                    src="/img/logo_DT READY.png" 
-                    alt="DT Logo" 
-                    width={18} 
-                    height={18} 
-                  />
+                 
                 </div>
                 
                 <div className="text-center my-0">
