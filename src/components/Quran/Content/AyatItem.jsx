@@ -269,9 +269,10 @@ const AyatItem = ({
           )}
           
           <div 
-            className={`arab ${getArabicFontSizeClass(fontSizeClass)} leading-loose mb-3`} 
+            className={`arab ${getArabicFontSizeClass(fontSizeClass)} leading-loose mb-3 font-uthmanic`} 
             dir="rtl" 
             dangerouslySetInnerHTML={{ __html: renderArabicWithTajwid(ayat.arab) }}
+            style={{ fontFamily: 'Uthmanic, sans-serif' }}
           />
           
           {ayat.tafsir && showTranslation && (

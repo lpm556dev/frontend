@@ -1,0 +1,16 @@
+@font-face {
+    font-family: 'Uthmanic';
+    src: url('/fonts/litelpmq.eot');
+    src: url('/fonts/litelpmq.eot?#iefix') format('embedded-opentype'), url('/fonts/litelpmq.woff2') format('woff2'), url('/fonts/litelpmq.woff') format('woff'), url('/fonts/litelpmq.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Numans';
+    src: url('/fonts/numans.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}

@@ -327,3 +327,36 @@
     letter-spacing: 0;
     word-spacing: -2px;
 }
+
+
+/* app/styles/quran-styles.css */
+
+.font-uthmanic {
+    font-family: 'Uthmanic', sans-serif;
+}
+
+.font-numans {
+    font-family: 'Numans', sans-serif;
+}
+
+
+/* Tambahkan style untuk tajwid jika diperlukan */
+
+.tajwid-izhar {
+    color: #673AB7;
+}
+
+.tajwid-idgham {
+    color: #3F51B5;
+}
+
+.tajwid-iqlab {
+    color: #8BC34A;
+}
+
+.tajwid-ikhfa {
+    color: #FF5722;
+}
+
+
+/* ... (dan seterusnya untuk semua class tajwid) */

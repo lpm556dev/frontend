@@ -8,7 +8,8 @@ import DesktopControls from './Controls/DesktopControls';
 import QuranContent from './Content/QuranContent';
 import useQuran from '../../hooks/useQuran';
 import useAuthStore from '../../stores/authStore';
-import '../../app/styles/quran-styles.css'; // Import the custom CSS
+import '../../app/styles/quran-styles.css';
+import '../../app/styles/fonts.css';
 
 const QuranDashboard = () => {
   const [isClient, setIsClient] = useState(false);
@@ -137,6 +138,7 @@ const QuranDashboard = () => {
         handleSearchChange={handleSearchChange}
         handleSearch={handleSearch}
       />
+
 
       {/* Desktop Controls */}
       <DesktopControls 
