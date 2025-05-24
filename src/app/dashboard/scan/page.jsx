@@ -43,7 +43,7 @@ export default function QrCodeScanner() {
   const [weekendScanHistory, setWeekendScanHistory] = useState([]);
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [todayScans, setTodayScans] = useState([]);
-  const [scannedCodes, setScannedCodes] = useState([]); // Track all scanned codes
+  const [scannedCodesToday, setScannedCodesToday] = useState([]);
   
   // Scanner reference
   const scannerRef = useRef(null);
@@ -235,22 +235,15 @@ export default function QrCodeScanner() {
     return now.toISOString().split('T')[0];
   };
 
-  // Check if user has already scanned today
-  const hasScannedToday = () => {
-    const today = getTodayDateString();
-    return todayScans.some(scan => scan.date === today);
+  // Check if user has already scanned this QR code today
+  const hasScannedThisCodeToday = (code) => {
+    return scannedCodesToday.some(item => item.code === code);
   };
 
-  // Check if user has completed both scans today
-  const hasCompletedTodayScans = () => {
-    const today = getTodayDateString();
-    const todayScanCount = todayScans.filter(scan => scan.date === today).length;
-    return todayScanCount >= 2;
-  };
-
-  // Check if QR code has already been scanned today
-  const hasScannedThisCode = (code) => {
-    return scannedCodes.includes(code);
+  // Check how many times user has scanned this QR code today
+  const getScanCountForCode = (code) => {
+    const scans = scannedCodesToday.filter(item => item.code === code);
+    return scans.length;
   };
 
   // ===== Effects =====
@@ -470,9 +463,9 @@ export default function QrCodeScanner() {
     }
 
     // Load scanned codes from localStorage
-    const savedScannedCodes = localStorage.getItem('scannedCodes');
+    const savedScannedCodes = localStorage.getItem('scannedCodesToday');
     if (savedScannedCodes) {
-      setScannedCodes(JSON.parse(savedScannedCodes));
+      setScannedCodesToday(JSON.parse(savedScannedCodes));
     }
 
     // Fetch initial attendance history
@@ -507,12 +500,12 @@ export default function QrCodeScanner() {
     }
   }, [todayScans]);
 
-  // Save scanned codes to localStorage when it changes
+  // Save scanned codes to localStorage when they change
   useEffect(() => {
-    if (scannedCodes.length > 0) {
-      localStorage.setItem('scannedCodes', JSON.stringify(scannedCodes));
+    if (scannedCodesToday.length > 0) {
+      localStorage.setItem('scannedCodesToday', JSON.stringify(scannedCodesToday));
     }
-  }, [scannedCodes]);
+  }, [scannedCodesToday]);
 
   // Handle auto attendance on Sunday after 16:00 if not scanned
   useEffect(() => {
@@ -577,18 +570,14 @@ export default function QrCodeScanner() {
       return;
     }
 
-    // Check if this QR code has already been scanned today
-    if (hasScannedThisCode(decodedText)) {
-      toast.error("QR code ini sudah discan hari ini");
-      stopScanner();
-      return;
-    }
-
     setScannedCode(decodedText);
     stopScanner();
     
     const now = new Date();
     const today = getTodayDateString();
+    
+    // Check if this QR code has been scanned before today
+    const scanCountForThisCode = getScanCountForCode(decodedText);
     
     // Add to today's scans
     const newScan = {
@@ -599,21 +588,29 @@ export default function QrCodeScanner() {
     
     setTodayScans(prev => [...prev, newScan]);
     
-    // Add to scanned codes list
-    setScannedCodes(prev => [...prev, decodedText]);
+    // Add to scanned codes tracking
+    setScannedCodesToday(prev => [...prev, { 
+      code: decodedText, 
+      timestamp: now.getTime(),
+      type: attendanceType
+    }]);
     
-    // Check if this is the first or second scan today
-    const todayScanCount = todayScans.filter(scan => scan.date === today).length + 1;
-    
-    if (todayScanCount === 1) {
-      // First scan - set status to hadir
+    if (scanCountForThisCode === 0) {
+      // First scan for this code - set status to hadir
       setAttendanceStatus('hadir');
       setAttendanceType('masuk');
-    } else if (todayScanCount === 2) {
-      // Second scan - show permission form
+    } else if (scanCountForThisCode === 1) {
+      // Second scan for this code - show permission form
       setShowPermissionForm(true);
       setAttendanceStatus('ijin pulang');
       setAttendanceType('keluar');
+    } else {
+      // More than 2 scans for this code - show message
+      setScanResult({
+        success: false,
+        message: "Anda sudah melakukan scan 2 kali untuk QR code ini hari ini",
+      });
+      return;
     }
   };
 
@@ -895,15 +892,6 @@ export default function QrCodeScanner() {
   const handlePermissionSubmit = () => {
     if (!permissionReason) {
       toast.error('Harap masukkan alasan ijin');
-      return;
-    }
-    submitAttendance(scannedCode);
-  };
-
-  // Handle late submission
-  const handleLateSubmit = () => {
-    if (!lateReason) {
-      toast.error('Harap masukkan alasan keterlambatan');
       return;
     }
     submitAttendance(scannedCode);
