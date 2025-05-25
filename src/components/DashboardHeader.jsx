@@ -1,6 +1,7 @@
 // DashboardHeader.jsx - Updated for mobile with no dark background
 import React from 'react';
 import Image from 'next/image';
+import useAuthStore from '../stores/authStore';
 
 const DashboardHeader = ({ 
   userData, 
@@ -12,6 +13,8 @@ const DashboardHeader = ({
   setShowNotification,
   isMobile
 }) => {
+
+  const { qrcode } =  useAuthStore();
   return (
     <header className="bg-white shadow-sm sticky top-0 z-20">
       {/* User Greeting Card */}
@@ -41,7 +44,7 @@ const DashboardHeader = ({
             <div>
               <h2 className="text-lg sm:text-xl font-bold text-white">Ahlan wa Sahlan,</h2>
               <p className="text-sm font-semibold text-white">{userData.name}</p>
-              <p className="text-xs text-white opacity-80">{userData.level}</p>
+              <p className="text-xs text-white opacity-80">{qrcode || userData.level}</p>
             </div>
           </div>
 
