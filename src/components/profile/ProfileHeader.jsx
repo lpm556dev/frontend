@@ -6,7 +6,7 @@ import useAuthStore from '../../stores/authStore';
 const ProfileHeader = () => {
   const [userData, setUserData] = useState(null);
   const [isClient, setIsClient] = useState(false);
-  const {qrcode, role } = useAuthStore();
+  const { qrcode, role } = useAuthStore();
   
   // Handle client-side rendering
   useEffect(() => {
@@ -70,7 +70,7 @@ const ProfileHeader = () => {
         <p className="text-sm text-gray-600 mb-1">{userData?.level}</p>
         <p className="text-sm text-gray-600 mb-1">{userData?.email}</p>
         <p className="text-sm text-gray-600">{userData?.phone}</p>
-        <p className="text-sm text-gray-600">{qrcode || B51003}</p>
+        <p className="text-sm text-gray-600">{qrcode || 'B51003'}</p> {/* Fixed: Added quotes around B51003 */}
       </div>
     </div>
   );
