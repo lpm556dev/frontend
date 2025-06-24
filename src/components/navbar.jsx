@@ -14,8 +14,8 @@ const Navbar = () => {
   const navItems = [
     { name: 'HOME', path: '/', isScroll: true, scrollTo: 'home' },
     { name: 'ABOUT US', path: '/', isScroll: true, scrollTo: 'about' },
-    { name: 'ACTIVITY', path: '/activity' },
-    { name: 'CONTACT', path: '/', isScroll: true, scrollTo: 'contact' } // Changed to use scroll behavior
+    { name: 'NEWS', path: 'https://lpm.siapguna.org', isExternal: true },
+    { name: 'CONTACT', path: '/', isScroll: true, scrollTo: 'contact' }
   ];
   
   // State for mobile menu
@@ -40,7 +40,7 @@ const Navbar = () => {
     } else if (pathname === '/') {
       setActiveItem('HOME');
     }
-  }, [pathname]); // Only run when pathname changes
+  }, [pathname]);
   
   // Effect to handle scrolling when redirected with a section parameter
   useEffect(() => {
@@ -60,10 +60,10 @@ const Navbar = () => {
               setActiveItem(matchingItem.name);
             }
           }
-        }, 500); // Short delay to ensure DOM is ready
+        }, 500);
       }
     }
-  }, [pathname]); // Only run when pathname changes
+  }, [pathname]);
   
   // Effect to handle scroll events
   useEffect(() => {
@@ -71,65 +71,53 @@ const Navbar = () => {
       if (typeof window !== 'undefined') {
         const currentScrollY = window.scrollY;
         
-        // Determine if user is scrolling up or down
         if (currentScrollY > lastScrollY && currentScrollY > 80) {
-          // Scrolling down & past the threshold
           setVisible(false);
         } else {
-          // Scrolling up or at the top
           setVisible(true);
         }
         
-        // Update last scroll position
         setLastScrollY(currentScrollY);
       }
     };
 
-    // Add scroll event listener
     window.addEventListener('scroll', controlNavbar);
     
-    // Cleanup
     return () => {
       window.removeEventListener('scroll', controlNavbar);
     };
-  }, [lastScrollY]); // Only run when lastScrollY changes
+  }, [lastScrollY]);
   
-  // Handle navigation with scrolling
+  // Handle navigation
   const handleNavigation = (e, item) => {
-    // Set this item as the active item when clicked
+    if (item.isExternal) {
+      // For external links, let the browser handle it normally
+      return;
+    }
+    
     setActiveItem(item.name);
     
     if (item.isScroll) {
       e.preventDefault();
       
       if (pathname === '/') {
-        // If we're already on the home page, just scroll to the element
         const element = document.getElementById(item.scrollTo);
         if (element) {
-          // Get the height of the navbar for offset calculation
-          const navbarHeight = 64; // Approximated height of navbar in pixels
-          
-          // Get the element's position relative to the viewport
+          const navbarHeight = 64;
           const rect = element.getBoundingClientRect();
-          
-          // Calculate the absolute position of the element on the page
           const elemPosition = rect.top + window.pageYOffset;
           
-          // Scroll to the element with offset for the navbar
           window.scrollTo({
             top: elemPosition - navbarHeight,
             behavior: 'smooth'
           });
         }
       } else {
-        // If we're on another page, navigate to home with section parameter
         router.push(`/?section=${item.scrollTo}`);
       }
     }
-    // For other navigation items, let the Link component handle it normally
   };
   
-  // Common gradient background style for consistent appearance - with darker grays
   const navGradient = "bg-gradient-to-r from-gray-400/95 via-gray-300/90 to-gray-200/85";
   
   return (
@@ -162,7 +150,7 @@ const Navbar = () => {
             </Link>
           </motion.div>
           
-          {/* Desktop Navigation - Hidden on mobile */}
+          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             <nav>
               <ul className="flex space-x-10">
@@ -180,19 +168,32 @@ const Navbar = () => {
                         ease: "easeOut" 
                       }}
                     >
-                      <Link 
-                        href={item.path} 
-                        className={`font-semibold text-sm uppercase transition-colors ${
-                          isActive ? 'text-black' : 'text-gray-700'
-                        }`}
-                        onClick={(e) => handleNavigation(e, item)}
-                      >
-                        <motion.span
-                          transition={{ type: "spring", stiffness: 300 }}
+                      {item.isExternal ? (
+                        <a
+                          href={item.path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`font-semibold text-sm uppercase transition-colors ${
+                            isActive ? 'text-black' : 'text-gray-700'
+                          }`}
                         >
-                          {item.name}
-                        </motion.span>
-                      </Link>
+                          <motion.span transition={{ type: "spring", stiffness: 300 }}>
+                            {item.name}
+                          </motion.span>
+                        </a>
+                      ) : (
+                        <Link 
+                          href={item.path} 
+                          className={`font-semibold text-sm uppercase transition-colors ${
+                            isActive ? 'text-black' : 'text-gray-700'
+                          }`}
+                          onClick={(e) => handleNavigation(e, item)}
+                        >
+                          <motion.span transition={{ type: "spring", stiffness: 300 }}>
+                            {item.name}
+                          </motion.span>
+                        </Link>
+                      )}
                     </motion.li>
                   );
                 })}
@@ -247,7 +248,7 @@ const Navbar = () => {
           </div>
         </div>
         
-        {/* Mobile Navigation Menu - Using the same gradient as the main navigation */}
+        {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
           <motion.nav 
             className={`md:hidden ${navGradient} overflow-hidden rounded-b-[30px]`}
@@ -267,18 +268,32 @@ const Navbar = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.2, delay: 0.05 * index }}
                   >
-                    <Link 
-                      href={item.path} 
-                      className={`block py-2 font-medium ${
-                        isActive ? 'text-black' : 'text-gray-700'
-                      }`}
-                      onClick={(e) => {
-                        handleNavigation(e, item);
-                        setMobileMenuOpen(false);
-                      }}
-                    >
-                      {item.name}
-                    </Link>
+                    {item.isExternal ? (
+                      <a
+                        href={item.path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`block py-2 font-medium ${
+                          isActive ? 'text-black' : 'text-gray-700'
+                        }`}
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        {item.name}
+                      </a>
+                    ) : (
+                      <Link 
+                        href={item.path} 
+                        className={`block py-2 font-medium ${
+                          isActive ? 'text-black' : 'text-gray-700'
+                        }`}
+                        onClick={(e) => {
+                          handleNavigation(e, item);
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        {item.name}
+                      </Link>
+                    )}
                   </motion.li>
                 );
               })}
